@@ -9,12 +9,28 @@ const PATTERNS = {
 
 class Collection {
 
-    constructor(head, tail, padding, indexes, members) {
+    constructor(head, tail, padding, indexes) {
         this.head = head;
         this.tail = tail;
         this.padding = padding;
-        this.indexes = indexes;
-        this.members = members;
+        this._indexes = new Set(indexes);
+    }
+
+    get indexes() {
+        return Array.from(this._indexes).sort((a, b) => a - b);
+    }
+
+    get members() {
+        return this.indexes.map(i => `${this.head}${String(i).padStart(this.padding, '0')}${this.tail}`);
+    }
+
+    add(item) {
+        const match = this.match(item);
+        if (match === null) {
+            throw new Error(`Item '${item}' does not match collection expression.`);
+        }
+        const {index, _} = match.groups;
+        this._indexes.add(Number(index));
     }
 
     match(item) {

@@ -64,3 +64,53 @@ describe('Collection.match', () => {
         expect(match.groups.padding).toBe('00');
     });
 });
+
+
+describe('Collection.add', () => {
+    test('adds a new item to the collection', () => {
+        const collection = new Collection('file_', '.txt', 2, [1, 2], ['file_01.txt', 'file_02.txt']);
+        collection.add('file_03.txt');
+        expect(collection.indexes).toEqual([1, 2, 3]);
+        expect(collection.members).toContain('file_03.txt');
+    });
+
+    test('does not add duplicate items', () => {
+        const collection = new Collection('file_', '.txt', 2, [1, 2], ['file_01.txt', 'file_02.txt']);
+        collection.add('file_02.txt');
+        expect(collection.indexes).toEqual([1, 2]);
+        expect(collection.members).toEqual(['file_01.txt', 'file_02.txt']);
+    });
+
+    test('throws an error when adding an item that does not match the pattern', () => {
+        const collection = new Collection('file_', '.txt', 2, [1, 2], ['file_01.txt', 'file_02.txt']);
+        expect(() => collection.add('file_03.jpg')).toThrow("Item 'file_03.jpg' does not match collection expression.");
+    });
+
+    test('adds item with different padding when padding is 0', () => {
+        const collection = new Collection('v', '', 0, [1, 2], ['v1', 'v2']);
+        collection.add('v10');
+        console.log(collection.members);
+        console.log(collection.indexes);
+        expect(collection.indexes).toEqual([1, 2, 10]);
+        expect(collection.members).toContain('v10');
+    });
+
+    test('throws an error when adding item with incorrect padding', () => {
+        const collection = new Collection('img_', '.png', 3, [1, 2], ['img_001.png', 'img_002.png']);
+        expect(() => collection.add('img_03.png')).toThrow("Item 'img_03.png' does not match collection expression.");
+    });
+
+    test('maintains sorted order of indexes and members after adding', () => {
+        const collection = new Collection('seq_', '.jpg', 3, [1, 3], ['seq_001.jpg', 'seq_003.jpg']);
+        collection.add('seq_002.jpg');
+        expect(collection.indexes).toEqual([1, 2, 3]);
+        expect(collection.members).toEqual(['seq_001.jpg', 'seq_002.jpg', 'seq_003.jpg']);
+    });
+
+    test('adds item with non-consecutive index', () => {
+        const collection = new Collection('frame_', '.exr', 4, [1, 2, 3], ['frame_0001.exr', 'frame_0002.exr', 'frame_0003.exr']);
+        collection.add('frame_0010.exr');
+        expect(collection.indexes).toEqual([1, 2, 3, 10]);
+        expect(collection.members).toContain('frame_0010.exr');
+    });
+});
