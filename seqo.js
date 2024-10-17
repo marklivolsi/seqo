@@ -23,15 +23,13 @@ class Collection {
             return null;
         }
         const {index, padding} = match.groups;
-        const isPadded = Boolean(padding);
-        if (isPadded && this.padding === 0) {
-            return null;
-        }
-        if (index.length !== this.padding) {
+        if (this.padding === 0 ) {
+            const isPadded = Boolean(padding);
+            if (isPadded) return null;
+        } else if (index.length !== this.padding) {
             return null;
         }
         return match;
-
     }
 
     #expression() {
