@@ -1,0 +1,16 @@
+{
+  "name": "seqo",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "A Javascript adaptation of Python's Clique library, for parsing collections from common numerical components.",
+  "main": "seqo.js",
+  "scripts": {
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}
