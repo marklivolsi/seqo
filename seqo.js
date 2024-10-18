@@ -38,13 +38,35 @@ class Collection {
         return holes.length > 0 ? new Collection(this.head, this.tail, this.padding, holes) : null;
     }
 
-    add(item) {
-        const match = this.match(item);
-        if (match === null) {
-            throw new Error(`Item '${item}' does not match collection expression.`);
+    add(items) {
+        if (!Array.isArray(items)) {
+            items = [items];
         }
-        const {index, _} = match.groups;
-        this._indexes.add(Number(index));
+
+        const newIndexes = new Set(this._indexes);
+
+        for (const item of items) {
+            const type = typeof item;
+            if (type === 'string') {
+                const match = this.match(item);
+                if (match === null) {
+                    throw new Error(`Item '${item}' does not match collection expression.`);
+                }
+                const {index} = match.groups;
+                newIndexes.add(Number(index));
+                continue;
+            }
+            if (typeof item === 'number') {
+                if (!Number.isInteger(item) || item < 0) {
+                    throw new Error(`Invalid index: ${item}. Expected non-negative integer.`);
+                }
+                newIndexes.add(item);
+                continue;
+            }
+            throw new Error(`Invalid item type: ${typeof item}. Expected string or number.`);
+        }
+
+        this._indexes = newIndexes;
     }
 
     remove(item) {
@@ -54,13 +76,23 @@ class Collection {
         this._indexes.delete(Number(index));
     }
 
-    // format(pattern='{head}{padding}{tail} [{ranges}]') {
-    //     const data = {
-    //         head: this.head,
-    //         tail: this.tail,
-    //         padding: this.padding ? `%0${this.padding}d` : null,
-    //     }
-    // }
+    isCompatible(collection) {
+        return (
+            collection.head === this.head &&
+            collection.tail === this.tail &&
+            collection.padding === this.padding
+        );
+    }
+
+    format(pattern='{head}{padding}{tail} [{ranges}]') {
+        const data = {
+            head: this.head,
+            tail: this.tail,
+            padding: this.padding ? `%0${this.padding}d` : `%d`,
+            holes: pattern.includes('{holes}') ? this.holes.format('{ranges}') : '',
+
+        }
+    }
 
     match(item) {
         const match = this.#expression().exec(item);

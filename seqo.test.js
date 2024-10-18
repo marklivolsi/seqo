@@ -67,51 +67,110 @@ describe('Collection.match', () => {
 
 
 describe('Collection.add', () => {
-    test('adds a new item to the collection', () => {
-        const collection = new Collection('file_', '.txt', 2, [1, 2], ['file_01.txt', 'file_02.txt']);
-        collection.add('file_03.txt');
-        expect(collection.indexes).toEqual([1, 2, 3]);
-        expect(collection.members).toContain('file_03.txt');
+    let collection;
+
+    beforeEach(() => {
+        collection = new Collection('file_', '.txt', 2, [1]);
     });
 
-    test('does not add duplicate items', () => {
-        const collection = new Collection('file_', '.txt', 2, [1, 2], ['file_01.txt', 'file_02.txt']);
+    test('adds a single member string', () => {
         collection.add('file_02.txt');
         expect(collection.indexes).toEqual([1, 2]);
         expect(collection.members).toEqual(['file_01.txt', 'file_02.txt']);
     });
 
-    test('throws an error when adding an item that does not match the pattern', () => {
-        const collection = new Collection('file_', '.txt', 2, [1, 2], ['file_01.txt', 'file_02.txt']);
-        expect(() => collection.add('file_03.jpg')).toThrow("Item 'file_03.jpg' does not match collection expression.");
+    test('adds multiple member strings', () => {
+        collection.add(['file_02.txt', 'file_03.txt']);
+        expect(collection.indexes).toEqual([1, 2, 3]);
+        expect(collection.members).toEqual(['file_01.txt', 'file_02.txt', 'file_03.txt']);
+    });
+
+    test('adds a single index', () => {
+        collection.add(2);
+        expect(collection.indexes).toEqual([1, 2]);
+        expect(collection.members).toEqual(['file_01.txt', 'file_02.txt']);
+    });
+
+    test('adds multiple indexes', () => {
+        collection.add([2, 3]);
+        expect(collection.indexes).toEqual([1, 2, 3]);
+        expect(collection.members).toEqual(['file_01.txt', 'file_02.txt', 'file_03.txt']);
+    });
+
+    test('adds mix of member strings and indexes', () => {
+        collection.add(['file_02.txt', 3, 'file_04.txt']);
+        expect(collection.indexes).toEqual([1, 2, 3, 4]);
+        expect(collection.members).toEqual(['file_01.txt', 'file_02.txt', 'file_03.txt', 'file_04.txt']);
+    });
+
+    test('does not add duplicate items', () => {
+        collection.add(['file_01.txt', 1, 'file_02.txt', 2]);
+        expect(collection.indexes).toEqual([1, 2]);
+        expect(collection.members).toEqual(['file_01.txt', 'file_02.txt']);
+    });
+
+    test('throws an error when adding a member string that does not match the pattern', () => {
+        expect(() => collection.add('file_02.jpg')).toThrow("Item 'file_02.jpg' does not match collection expression.");
+    });
+
+    test('throws an error when adding an invalid index', () => {
+        expect(() => collection.add(-1)).toThrow("Invalid index: -1. Expected non-negative integer.");
     });
 
     test('adds item with different padding when padding is 0', () => {
-        const collection = new Collection('v', '', 0, [1, 2], ['v1', 'v2']);
-        collection.add('v10');
-        console.log(collection.members);
-        console.log(collection.indexes);
-        expect(collection.indexes).toEqual([1, 2, 10]);
-        expect(collection.members).toContain('v10');
+        const zeroPaddedCollection = new Collection('v', '', 0, [1, 2]);
+        zeroPaddedCollection.add('v10');
+        expect(zeroPaddedCollection.indexes).toEqual([1, 2, 10]);
+        expect(zeroPaddedCollection.members).toEqual(['v1', 'v2', 'v10']);
     });
 
-    test('throws an error when adding item with incorrect padding', () => {
-        const collection = new Collection('img_', '.png', 3, [1, 2], ['img_001.png', 'img_002.png']);
-        expect(() => collection.add('img_03.png')).toThrow("Item 'img_03.png' does not match collection expression.");
+    test('maintains sorted order of indexes after adding', () => {
+        collection.add([4, 2, 3]);
+        expect(collection.indexes).toEqual([1, 2, 3, 4]);
+        expect(collection.members).toEqual(['file_01.txt', 'file_02.txt', 'file_03.txt', 'file_04.txt']);
     });
 
-    test('maintains sorted order of indexes and members after adding', () => {
-        const collection = new Collection('seq_', '.jpg', 3, [1, 3], ['seq_001.jpg', 'seq_003.jpg']);
-        collection.add('seq_002.jpg');
-        expect(collection.indexes).toEqual([1, 2, 3]);
-        expect(collection.members).toEqual(['seq_001.jpg', 'seq_002.jpg', 'seq_003.jpg']);
+    test('handles large number of items', () => {
+        const largeArray = Array.from({length: 1000}, (_, i) => i + 2);
+        collection.add(largeArray);
+        expect(collection.indexes.length).toBe(1001);
+        expect(collection.members.length).toBe(1001);
+        expect(collection.indexes[1000]).toBe(1001);
+        expect(collection.members[1000]).toBe('file_1001.txt');
     });
 
-    test('adds item with non-consecutive index', () => {
-        const collection = new Collection('frame_', '.exr', 4, [1, 2, 3], ['frame_0001.exr', 'frame_0002.exr', 'frame_0003.exr']);
-        collection.add('frame_0010.exr');
-        expect(collection.indexes).toEqual([1, 2, 3, 10]);
-        expect(collection.members).toContain('frame_0010.exr');
+    test('throws an error for invalid item type', () => {
+        expect(() => collection.add({})).toThrow("Invalid item type: object. Expected string or number.");
+    });
+
+    test('does not add any items if one item is invalid (member string)', () => {
+        expect(() => {
+            collection.add(['file_02.txt', 'file_03.jpg', 'file_04.txt']);
+        }).toThrow("Item 'file_03.jpg' does not match collection expression.");
+        expect(collection.indexes).toEqual([1]);
+        expect(collection.members).toEqual(['file_01.txt']);
+    });
+
+    test('does not add any items if one item is invalid (index)', () => {
+        expect(() => {
+            collection.add([2, -1, 4]);
+        }).toThrow("Invalid index: -1. Expected non-negative integer.");
+        expect(collection.indexes).toEqual([1]);
+        expect(collection.members).toEqual(['file_01.txt']);
+    });
+
+    test('does not add any items if one item is of invalid type', () => {
+        expect(() => {
+            collection.add([2, 3, {}]);
+        }).toThrow("Invalid item type: object. Expected string or number.");
+        expect(collection.indexes).toEqual([1]);
+        expect(collection.members).toEqual(['file_01.txt']);
+    });
+
+    test('adds all items if all are valid', () => {
+        collection.add(['file_02.txt', 3, 'file_04.txt']);
+        expect(collection.indexes).toEqual([1, 2, 3, 4]);
+        expect(collection.members).toEqual(['file_01.txt', 'file_02.txt', 'file_03.txt', 'file_04.txt']);
     });
 });
 
