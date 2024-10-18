@@ -69,11 +69,23 @@ class Collection {
         this._indexes = newIndexes;
     }
 
-    remove(item) {
-        const match = this.match(item);
-        if (match === null) return;
-        const {index, _} = match.groups;
-        this._indexes.delete(Number(index));
+    remove(items) {
+        if (!Array.isArray(items)) {
+            items = [items];
+        }
+        for (const item of items) {
+            if (typeof item === 'string') {
+                const match = this.match(item);
+                if (match !== null) {
+                    const {index} = match.groups;
+                    this._indexes.delete(Number(index));
+                }
+            } else if (typeof item === 'number') {
+                if (Number.isInteger(item) && item >= 0) {
+                    this._indexes.delete(item);
+                }
+            }
+        }
     }
 
     isCompatible(collection) {

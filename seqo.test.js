@@ -176,61 +176,86 @@ describe('Collection.add', () => {
 
 
 describe('Collection.remove', () => {
-    test('removes an existing item from the collection', () => {
-        const collection = new Collection('file_', '.txt', 2, [1, 2, 3], ['file_01.txt', 'file_02.txt', 'file_03.txt']);
-        collection.remove('file_02.txt');
-        expect(collection.indexes).toEqual([1, 3]);
-        expect(collection.members).not.toContain('file_02.txt');
+    let collection;
+
+    beforeEach(() => {
+        collection = new Collection('file_', '.txt', 2, [1, 2, 3, 4, 5], ['file_01.txt', 'file_02.txt', 'file_03.txt', 'file_04.txt', 'file_05.txt']);
     });
 
-    test('does nothing when removing a non-existent item', () => {
-        const collection = new Collection('file_', '.txt', 2, [1, 2], ['file_01.txt', 'file_02.txt']);
+    test('removes a single member string', () => {
         collection.remove('file_03.txt');
-        expect(collection.indexes).toEqual([1, 2]);
-        expect(collection.members).toEqual(['file_01.txt', 'file_02.txt']);
-    });
-
-    test('handles removal of item with zero padding', () => {
-        const collection = new Collection('v', '', 0, [1, 2, 3], ['v1', 'v2', 'v3']);
-        collection.remove('v2');
-        expect(collection.indexes).toEqual([1, 3]);
-        expect(collection.members).not.toContain('v2');
-    });
-
-    test('correctly updates indexes after removal', () => {
-        const collection = new Collection('img_', '.png', 3, [1, 2, 3, 4], ['img_001.png', 'img_002.png', 'img_003.png', 'img_004.png']);
-        collection.remove('img_002.png');
-        expect(collection.indexes).toEqual([1, 3, 4]);
-    });
-
-    test('maintains correct order after removal', () => {
-        const collection = new Collection('seq_', '.jpg', 2, [1, 2, 3, 4, 5], ['seq_01.jpg', 'seq_02.jpg', 'seq_03.jpg', 'seq_04.jpg', 'seq_05.jpg']);
-        collection.remove('seq_03.jpg');
         expect(collection.indexes).toEqual([1, 2, 4, 5]);
-        expect(collection.members).toEqual(['seq_01.jpg', 'seq_02.jpg', 'seq_04.jpg', 'seq_05.jpg']);
+        expect(collection.members).toEqual(['file_01.txt', 'file_02.txt', 'file_04.txt', 'file_05.txt']);
     });
 
-    test('does nothing when removing an item that does not match the pattern', () => {
-        const collection = new Collection('frame_', '.exr', 4, [1, 2, 3], ['frame_0001.exr', 'frame_0002.exr', 'frame_0003.exr']);
-        collection.remove('frame_01.exr');
-        expect(collection.indexes).toEqual([1, 2, 3]);
-        expect(collection.members).toEqual(['frame_0001.exr', 'frame_0002.exr', 'frame_0003.exr']);
+    test('removes multiple member strings', () => {
+        collection.remove(['file_02.txt', 'file_04.txt']);
+        expect(collection.indexes).toEqual([1, 3, 5]);
+        expect(collection.members).toEqual(['file_01.txt', 'file_03.txt', 'file_05.txt']);
     });
 
-    test('correctly handles removal of first and last items', () => {
-        const collection = new Collection('file_', '.txt', 2, [1, 2, 3], ['file_01.txt', 'file_02.txt', 'file_03.txt']);
-        collection.remove('file_01.txt');
-        collection.remove('file_03.txt');
-        expect(collection.indexes).toEqual([2]);
-        expect(collection.members).toEqual(['file_02.txt']);
+    test('removes a single index', () => {
+        collection.remove(3);
+        expect(collection.indexes).toEqual([1, 2, 4, 5]);
+        expect(collection.members).toEqual(['file_01.txt', 'file_02.txt', 'file_04.txt', 'file_05.txt']);
     });
 
-    test('allows removal of all items', () => {
-        const collection = new Collection('item_', '.dat', 2, [1, 2], ['item_01.dat', 'item_02.dat']);
-        collection.remove('item_01.dat');
-        collection.remove('item_02.dat');
+    test('removes multiple indexes', () => {
+        collection.remove([2, 4]);
+        expect(collection.indexes).toEqual([1, 3, 5]);
+        expect(collection.members).toEqual(['file_01.txt', 'file_03.txt', 'file_05.txt']);
+    });
+
+    test('removes mix of member strings and indexes', () => {
+        collection.remove(['file_02.txt', 4, 'file_05.txt']);
+        expect(collection.indexes).toEqual([1, 3]);
+        expect(collection.members).toEqual(['file_01.txt', 'file_03.txt']);
+    });
+
+    test('ignores non-existent items', () => {
+        collection.remove(['file_06.txt', 6, 'file_07.txt']);
+        expect(collection.indexes).toEqual([1, 2, 3, 4, 5]);
+        expect(collection.members).toEqual(['file_01.txt', 'file_02.txt', 'file_03.txt', 'file_04.txt', 'file_05.txt']);
+    });
+
+    test('removes item with different padding when padding is 0', () => {
+        const zeroPaddedCollection = new Collection('v', '', 0, [1, 2, 10], ['v1', 'v2', 'v10']);
+        zeroPaddedCollection.remove('v10');
+        expect(zeroPaddedCollection.indexes).toEqual([1, 2]);
+        expect(zeroPaddedCollection.members).toEqual(['v1', 'v2']);
+    });
+
+    test('maintains sorted order of indexes after removing', () => {
+        collection.remove([2, 4]);
+        expect(collection.indexes).toEqual([1, 3, 5]);
+        expect(collection.members).toEqual(['file_01.txt', 'file_03.txt', 'file_05.txt']);
+    });
+
+    test('handles removal of all items', () => {
+        collection.remove([1, 2, 3, 4, 5]);
         expect(collection.indexes).toEqual([]);
         expect(collection.members).toEqual([]);
+    });
+
+    test('ignores invalid index (negative number)', () => {
+        collection.remove(-1);
+        expect(collection.indexes).toEqual([1, 2, 3, 4, 5]);
+    });
+
+    test('ignores invalid index (float)', () => {
+        collection.remove(2.5);
+        expect(collection.indexes).toEqual([1, 2, 3, 4, 5]);
+    });
+
+    test('ignores invalid item types', () => {
+        collection.remove([{}, null, undefined, true, []]);
+        expect(collection.indexes).toEqual([1, 2, 3, 4, 5]);
+    });
+
+    test('removes valid items and ignores invalid ones', () => {
+        collection.remove(['file_02.txt', 'invalid_file.txt', 4, -1, 2.5, {}]);
+        expect(collection.indexes).toEqual([1, 3, 5]);
+        expect(collection.members).toEqual(['file_01.txt', 'file_03.txt', 'file_05.txt']);
     });
 });
 
