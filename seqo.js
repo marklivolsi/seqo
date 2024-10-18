@@ -24,6 +24,20 @@ class Collection {
         return this.indexes.map(i => `${this.head}${String(i).padStart(this.padding, '0')}${this.tail}`);
     }
 
+    get holes() {
+        if (this._indexes.size < 2) return null;
+        const indexes = this.indexes;
+        const holes = [];
+        const start = indexes[0];
+        const end = indexes[indexes.length - 1];
+        for (let i = start + 1; i < end; i++) {
+            if (!this._indexes.has(i)) {
+                holes.push(i);
+            }
+        }
+        return holes.length > 0 ? new Collection(this.head, this.tail, this.padding, holes) : null;
+    }
+
     add(item) {
         const match = this.match(item);
         if (match === null) {
@@ -39,6 +53,14 @@ class Collection {
         const {index, _} = match.groups;
         this._indexes.delete(Number(index));
     }
+
+    // format(pattern='{head}{padding}{tail} [{ranges}]') {
+    //     const data = {
+    //         head: this.head,
+    //         tail: this.tail,
+    //         padding: this.padding ? `%0${this.padding}d` : null,
+    //     }
+    // }
 
     match(item) {
         const match = this.#expression().exec(item);

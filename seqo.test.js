@@ -174,3 +174,53 @@ describe('Collection.remove', () => {
         expect(collection.members).toEqual([]);
     });
 });
+
+
+describe('Collection.holes', () => {
+    test('returns null when there are no holes', () => {
+        const collection = new Collection('file_', '.txt', 2, [1, 2, 3], ['file_01.txt', 'file_02.txt', 'file_03.txt']);
+        expect(collection.holes).toBeNull();
+    });
+
+    test('correctly identifies single hole', () => {
+        const collection = new Collection('file_', '.txt', 2, [1, 3], ['file_01.txt', 'file_03.txt']);
+        const holes = collection.holes;
+        expect(holes).toBeInstanceOf(Collection);
+        expect(holes.indexes).toEqual([2]);
+    });
+
+    test('correctly identifies multiple holes', () => {
+        const collection = new Collection('file_', '.txt', 2, [1, 4, 7], ['file_01.txt', 'file_04.txt', 'file_07.txt']);
+        const holes = collection.holes;
+        expect(holes.indexes).toEqual([2, 3, 5, 6]);
+    });
+
+    test('returns null when there are less than two indexes', () => {
+        const collection = new Collection('file_', '.txt', 2, [1], ['file_01.txt']);
+        expect(collection.holes).toBeNull();
+    });
+
+    test('handles large ranges efficiently', () => {
+        const largeRange = Array.from({length: 10000}, (_, i) => i * 2 + 1);
+        const collection = new Collection('file_', '.txt', 5, largeRange, largeRange.map(i => `file_${i.toString().padStart(5, '0')}.txt`));
+        const holes = collection.holes;
+        expect(holes.indexes.length).toBe(9999);
+        expect(holes.indexes[0]).toBe(2);
+        expect(holes.indexes[holes.indexes.length - 1]).toBe(19998);
+    });
+
+    test('preserves head, tail, and padding in returned collection', () => {
+        const collection = new Collection('img_', '.png', 3, [1, 3, 5], ['img_001.png', 'img_003.png', 'img_005.png']);
+        const holes = collection.holes;
+        expect(holes.head).toBe('img_');
+        expect(holes.tail).toBe('.png');
+        expect(holes.padding).toBe(3);
+    });
+
+    test('returns null for collection with no gaps at the end', () => {
+        const collection = new Collection('seq_', '.jpg', 2, [1, 2, 3, 5], ['seq_01.jpg', 'seq_02.jpg', 'seq_03.jpg', 'seq_05.jpg']);
+        const holes = collection.holes;
+        expect(holes).toBeInstanceOf(Collection);
+        expect(holes.indexes).toEqual([4]);
+    });
+});
