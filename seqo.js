@@ -47,26 +47,38 @@ class Collection {
 
         for (const item of items) {
             const type = typeof item;
-            if (type === 'string') {
+
+            if (item instanceof Collection) {
+                if (!this.isCompatible(item)) {
+                    throw new Error(`${item} is not compatible with this collection.`);
+                }
+                item.indexes.forEach(i => newIndexes.add(i));
+            }
+
+            else if (type === 'string') {
                 const match = this.match(item);
                 if (match === null) {
                     throw new Error(`Item '${item}' does not match collection expression.`);
                 }
                 const {index} = match.groups;
                 newIndexes.add(Number(index));
-                continue;
             }
-            if (typeof item === 'number') {
+
+            else if (type === 'number') {
                 if (!Number.isInteger(item) || item < 0) {
                     throw new Error(`Invalid index: ${item}. Expected non-negative integer.`);
                 }
                 newIndexes.add(item);
-                continue;
             }
-            throw new Error(`Invalid item type: ${typeof item}. Expected string or number.`);
+
+            else {
+                throw new Error(`Invalid item type: ${type}. Expected string, number, or Collection.`);
+            }
+
         }
 
         this._indexes = newIndexes;
+        return this;
     }
 
     remove(items) {
@@ -86,10 +98,12 @@ class Collection {
                 }
             }
         }
+        return this;
     }
 
     isCompatible(collection) {
         return (
+            collection instanceof Collection &&
             collection.head === this.head &&
             collection.tail === this.tail &&
             collection.padding === this.padding
