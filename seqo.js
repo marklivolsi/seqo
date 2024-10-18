@@ -33,6 +33,13 @@ class Collection {
         this._indexes.add(Number(index));
     }
 
+    remove(item) {
+        const match = this.match(item);
+        if (match === null) return;
+        const {index, _} = match.groups;
+        this._indexes.delete(Number(index));
+    }
+
     match(item) {
         const match = this.#expression().exec(item);
         if (!match) {
