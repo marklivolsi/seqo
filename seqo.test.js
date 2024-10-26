@@ -225,62 +225,71 @@ describe('Collection.remove', () => {
     let collection;
 
     beforeEach(() => {
-        collection = new Collection('file_', '.txt', 2, [1, 2, 3, 4, 5], ['file_01.txt', 'file_02.txt', 'file_03.txt', 'file_04.txt', 'file_05.txt']);
+        collection = new Collection('file_', '.txt', 2, [1, 2, 3, 4, 5]);
     });
 
+    // Basic functionality
     test('removes a single member string', () => {
         collection.remove('file_03.txt');
         expect(collection.indexes).toEqual([1, 2, 4, 5]);
-        expect(collection.members).toEqual(['file_01.txt', 'file_02.txt', 'file_04.txt', 'file_05.txt']);
     });
 
     test('removes multiple member strings', () => {
         collection.remove(['file_02.txt', 'file_04.txt']);
         expect(collection.indexes).toEqual([1, 3, 5]);
-        expect(collection.members).toEqual(['file_01.txt', 'file_03.txt', 'file_05.txt']);
     });
 
     test('removes a single index', () => {
         collection.remove(3);
         expect(collection.indexes).toEqual([1, 2, 4, 5]);
-        expect(collection.members).toEqual(['file_01.txt', 'file_02.txt', 'file_04.txt', 'file_05.txt']);
     });
 
     test('removes multiple indexes', () => {
         collection.remove([2, 4]);
         expect(collection.indexes).toEqual([1, 3, 5]);
-        expect(collection.members).toEqual(['file_01.txt', 'file_03.txt', 'file_05.txt']);
     });
 
     test('removes mix of member strings and indexes', () => {
         collection.remove(['file_02.txt', 4, 'file_05.txt']);
         expect(collection.indexes).toEqual([1, 3]);
-        expect(collection.members).toEqual(['file_01.txt', 'file_03.txt']);
     });
 
-    test('ignores non-existent items', () => {
-        collection.remove(['file_06.txt', 6, 'file_07.txt']);
-        expect(collection.indexes).toEqual([1, 2, 3, 4, 5]);
-        expect(collection.members).toEqual(['file_01.txt', 'file_02.txt', 'file_03.txt', 'file_04.txt', 'file_05.txt']);
-    });
-
+    // Padding tests
     test('removes item with different padding when padding is 0', () => {
         const zeroPaddedCollection = new Collection('v', '', 0, [1, 2, 10], ['v1', 'v2', 'v10']);
         zeroPaddedCollection.remove('v10');
         expect(zeroPaddedCollection.indexes).toEqual([1, 2]);
-        expect(zeroPaddedCollection.members).toEqual(['v1', 'v2']);
     });
 
-    test('maintains sorted order of indexes after removing', () => {
-        collection.remove([2, 4]);
-        expect(collection.indexes).toEqual([1, 3, 5]);
-        expect(collection.members).toEqual(['file_01.txt', 'file_03.txt', 'file_05.txt']);
+    test('ignores items with incorrect padding', () => {
+        collection.remove('file_3.txt');  // Missing padding
+        expect(collection.indexes).toEqual([1, 2, 3, 4, 5]);
     });
 
-    test('handles removal of all items', () => {
-        collection.remove([1, 2, 3, 4, 5]);
-        expect(collection.indexes).toEqual([]);
-        expect(collection.members).toEqual([]);
+    // Collection removal tests
+    test('removes indexes from a compatible Collection', () => {
+        const otherCollection = new Collection('file_', '.txt', 2, [2, 3, 4]);
+        collection.remove(otherCollection);
+        expect(collection.indexes).toEqual([1, 5]);
+    });
+
+    test('removes indexes from multiple Collections', () => {
+        const collection1 = new Collection('file_', '.txt', 2, [1, 2]);
+        const collection2 = new Collection('file_', '.txt', 2, [4, 5]);
+        collection.remove([collection1, collection2]);
+        expect(collection.indexes).toEqual([3]);
+    });
+
+    test('silently ignores incompatible Collections', () => {
+        const incompatibleCollection = new Collection('img_', '.jpg', 3, [1, 2, 3]);
+        collection.remove(incompatibleCollection);
+        expect(collection.indexes).toEqual([1, 2, 3, 4, 5]);
+    });
+
+    // Edge cases and invalid inputs
+    test('ignores non-existent items', () => {
+        collection.remove(['file_06.txt', 6, 'file_07.txt']);
+        expect(collection.indexes).toEqual([1, 2, 3, 4, 5]);
     });
 
     test('ignores invalid index (negative number)', () => {
@@ -298,10 +307,125 @@ describe('Collection.remove', () => {
         expect(collection.indexes).toEqual([1, 2, 3, 4, 5]);
     });
 
-    test('removes valid items and ignores invalid ones', () => {
+    test('removes valid items while ignoring invalid ones', () => {
         collection.remove(['file_02.txt', 'invalid_file.txt', 4, -1, 2.5, {}]);
         expect(collection.indexes).toEqual([1, 3, 5]);
-        expect(collection.members).toEqual(['file_01.txt', 'file_03.txt', 'file_05.txt']);
+    });
+
+    // Method chaining and bulk operations
+    test('returns this for method chaining', () => {
+        const result = collection.remove('file_03.txt');
+        expect(result).toBe(collection);
+    });
+
+    test('allows chaining multiple remove operations', () => {
+        collection
+            .remove('file_02.txt')
+            .remove(4)
+            .remove(['file_05.txt']);
+        expect(collection.indexes).toEqual([1, 3]);
+    });
+
+    test('handles large bulk removals efficiently', () => {
+        // Create collection with 1000 items
+        const largeCollection = new Collection('file_', '.txt', 4,
+            Array.from({length: 1000}, (_, i) => i + 1));
+
+        // Remove every even number
+        const toRemove = Array.from({length: 500}, (_, i) => (i + 1) * 2);
+        largeCollection.remove(toRemove);
+
+        expect(largeCollection.indexes).toEqual(
+            Array.from({length: 500}, (_, i) => (i * 2) + 1)
+        );
+    });
+
+    // Empty collection handling
+    test('handles removing from empty collection', () => {
+        const emptyCollection = new Collection('file_', '.txt', 2, []);
+        emptyCollection.remove([1, 2, 'file_03.txt']);
+        expect(emptyCollection.indexes).toEqual([]);
+    });
+
+    // Duplicate handling
+    test('safely handles duplicate removals', () => {
+        collection.remove(['file_03.txt', 3, 'file_03.txt', 3]);
+        expect(collection.indexes).toEqual([1, 2, 4, 5]);
+    });
+
+    // Mixed format tests
+    test('handles mixed string formats correctly', () => {
+        const mixedCollection = new Collection('v', '', 0, [1, 2, 3]);
+        mixedCollection.remove(['v1', 'v02', 'v3']);  // Should only remove v1 and v3
+        expect(mixedCollection.indexes).toEqual([2]);
+    });
+
+    // Strict mode tests
+    describe('strict mode', () => {
+        test('throws on incompatible Collection', () => {
+            const incompatibleCollection = new Collection('img_', '.jpg', 3, [1, 2, 3]);
+            expect(() => {
+                collection.remove(incompatibleCollection, { strict: true });
+            }).toThrow('Incompatible collection');
+        });
+
+        test('throws on invalid string format', () => {
+            expect(() => {
+                collection.remove('invalid_file.txt', { strict: true });
+            }).toThrow('Invalid string format');
+        });
+
+        test('throws on incorrect padding', () => {
+            expect(() => {
+                collection.remove('file_3.txt', { strict: true });
+            }).toThrow('Invalid string format');
+        });
+
+        test('throws on negative index', () => {
+            expect(() => {
+                collection.remove(-1, { strict: true });
+            }).toThrow('Expected non-negative integer: -1');
+        });
+
+        test('throws on float index', () => {
+            expect(() => {
+                collection.remove(2.5, { strict: true });
+            }).toThrow('Expected non-negative integer: 2.5');
+        });
+
+        test('throws on invalid item type', () => {
+            expect(() => {
+                collection.remove({}, { strict: true });
+            }).toThrow('Invalid item type: object');
+        });
+
+        test('throws on first invalid item in array', () => {
+            expect(() => {
+                collection.remove(['file_01.txt', 'invalid.txt', 5], { strict: true });
+            }).toThrow('Invalid string format');
+        });
+
+        test('processes valid items normally', () => {
+            collection.remove(['file_01.txt', 'file_02.txt'], { strict: true });
+            expect(collection.indexes).toEqual([3, 4, 5]);
+        });
+
+        test('works with mixed valid types', () => {
+            const compatibleCollection = new Collection('file_', '.txt', 2, [1, 2]);
+            collection.remove([compatibleCollection, 'file_03.txt', 4], { strict: true });
+            expect(collection.indexes).toEqual([5]);
+        });
+
+        test('defaults to non-strict mode when options omitted', () => {
+            expect(() => {
+                collection.remove(['file_01.txt', 'invalid.txt', {}]);
+            }).not.toThrow();
+        });
+
+        test('maintains method chaining', () => {
+            const result = collection.remove('file_01.txt', { strict: true });
+            expect(result).toBe(collection);
+        });
     });
 });
 

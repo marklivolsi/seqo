@@ -130,21 +130,46 @@ class Collection {
         return this;
     }
 
-    remove(items) {
+    /**
+     * Removes items from the collection. Items can be indexes, member strings, or compatible Collections.
+     *
+     * @param {(number|string|Collection|Array<number|string|Collection>)} items - Items to remove
+     * @param {Object} options
+     * @param {boolean} options.strict - If true, throws errors for invalid items. Default false.
+     * @returns {Collection} The collection instance for chaining
+     * @throws {Error} If strict mode is enabled and invalid items are provided
+     */
+    remove(items, { strict = false } = {}) {
         if (!Array.isArray(items)) {
             items = [items];
         }
+
         for (const item of items) {
-            if (typeof item === 'string') {
+            if (item instanceof Collection) {
+                if (!this.isCompatible(item)) {
+                    if (strict) throw new Error(`Incompatible collection: ${item}`);
+                    continue;
+                }
+                item.indexes.forEach(i => this._indexes.delete(i));
+            }
+            else if (typeof item === 'string') {
                 const match = this.match(item);
-                if (match !== null) {
-                    const {index} = match.groups;
-                    this._indexes.delete(Number(index));
+                if (match === null) {
+                    if (strict) throw new Error(`Invalid string format: ${item}`);
+                    continue;
                 }
-            } else if (typeof item === 'number') {
-                if (Number.isInteger(item) && item >= 0) {
-                    this._indexes.delete(item);
+                const {index} = match.groups;
+                this._indexes.delete(Number(index));
+            }
+            else if (typeof item === 'number') {
+                if (!Number.isInteger(item) || item < 0) {
+                    if (strict) throw new Error(`Expected non-negative integer: ${item}`);
+                    continue;
                 }
+                this._indexes.delete(item);
+            }
+            else if (strict) {
+                throw new Error(`Invalid item type: ${typeof item}`);
             }
         }
         return this;
@@ -209,7 +234,6 @@ class Collection {
 
         return collections;
     }
-
 
     isCompatible(collection) {
         return (
