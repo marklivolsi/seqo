@@ -415,3 +415,89 @@ describe('Collection.isContiguous', () => {
         expect(collection.isContiguous).toBe(true);
     });
 });
+
+
+describe('Collection.separate', () => {
+    test('empty collection returns array with empty collection', () => {
+        const collection = new Collection('file_', '.txt', 2, []);
+        const result = collection.separate();
+        expect(result).toHaveLength(1);
+        expect(result[0].indexes).toEqual([]);
+        expect(result[0].head).toBe(collection.head);
+        expect(result[0].tail).toBe(collection.tail);
+        expect(result[0].padding).toBe(collection.padding);
+    });
+
+    test('single element collection returns array with same collection', () => {
+        const collection = new Collection('file_', '.txt', 2, [5]);
+        const result = collection.separate();
+        expect(result).toHaveLength(1);
+        expect(result[0].indexes).toEqual([5]);
+    });
+
+    test('contiguous collection returns array with same collection', () => {
+        const collection = new Collection('file_', '.txt', 2, [1, 2, 3, 4, 5]);
+        const result = collection.separate();
+        expect(result).toHaveLength(1);
+        expect(result[0].indexes).toEqual([1, 2, 3, 4, 5]);
+    });
+
+    test('collection with one gap returns two collections', () => {
+        const collection = new Collection('file_', '.txt', 2, [1, 2, 4, 5]);
+        const result = collection.separate();
+        expect(result).toHaveLength(2);
+        expect(result[0].indexes).toEqual([1, 2]);
+        expect(result[1].indexes).toEqual([4, 5]);
+    });
+
+    test('collection with multiple gaps returns multiple collections', () => {
+        const collection = new Collection('file_', '.txt', 2, [1, 2, 4, 7, 8, 10]);
+        const result = collection.separate();
+        expect(result).toHaveLength(4);
+        expect(result[0].indexes).toEqual([1, 2]);
+        expect(result[1].indexes).toEqual([4]);
+        expect(result[2].indexes).toEqual([7, 8]);
+        expect(result[3].indexes).toEqual([10]);
+    });
+
+    test('preserves collection properties in separated collections', () => {
+        const collection = new Collection('img_', '.png', 3, [1, 2, 4, 5]);
+        const result = collection.separate();
+
+        result.forEach(coll => {
+            expect(coll.head).toBe('img_');
+            expect(coll.tail).toBe('.png');
+            expect(coll.padding).toBe(3);
+            expect(coll).toBeInstanceOf(Collection);
+        });
+    });
+
+    test('handles large sequences efficiently', () => {
+        // Create sequence with gaps: [1-100, 201-300, 401-500]
+        const indexes = [
+            ...Array.from({length: 100}, (_, i) => i + 1),
+            ...Array.from({length: 100}, (_, i) => i + 201),
+            ...Array.from({length: 100}, (_, i) => i + 401)
+        ];
+
+        const collection = new Collection('file_', '.txt', 4, indexes);
+        const result = collection.separate();
+
+        expect(result).toHaveLength(3);
+        expect(result[0].indexes[0]).toBe(1);
+        expect(result[0].indexes[99]).toBe(100);
+        expect(result[1].indexes[0]).toBe(201);
+        expect(result[1].indexes[99]).toBe(300);
+        expect(result[2].indexes[0]).toBe(401);
+        expect(result[2].indexes[99]).toBe(500);
+    });
+
+    test('handles reversed or unordered input', () => {
+        const collection = new Collection('file_', '.txt', 2, [5, 1, 2, 7, 8, 4]);
+        const result = collection.separate();
+        expect(result).toHaveLength(3);
+        expect(result[0].indexes).toEqual([1, 2]);
+        expect(result[1].indexes).toEqual([4, 5]);
+        expect(result[2].indexes).toEqual([7, 8]);
+    });
+});

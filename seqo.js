@@ -150,6 +150,67 @@ class Collection {
         return this;
     }
 
+    /**
+     * Separates the collection into multiple contiguous collections.
+     *
+     * @returns {Collection[]} Array of Collections, each containing a contiguous sequence of indexes.
+     *                        Returns array with empty Collection if this collection is empty,
+     *                        or array with this collection if it's already contiguous.
+     */
+    separate() {
+        // Handle empty collection case
+        if (this._indexes.size === 0) {
+            return [new Collection(this.head, this.tail, this.padding, [])];
+        }
+
+        // If already contiguous, return this collection as single element
+        if (this.isContiguous) {
+            return [new Collection(this.head, this.tail, this.padding, this.indexes)];
+        }
+
+        const collections = [];
+        const indexes = this.indexes;
+        let start = indexes[0];
+        let prev = start;
+
+        // Handle single element case
+        if (indexes.length === 1) {
+            return [new Collection(this.head, this.tail, this.padding, [start])];
+        }
+
+        // Iterate through sorted indexes finding breaks in continuity
+        for (let i = 1; i < indexes.length; i++) {
+            const current = indexes[i];
+
+            // If we find a gap, create a new collection
+            if (current !== prev + 1) {
+                collections.push(
+                    new Collection(
+                        this.head,
+                        this.tail,
+                        this.padding,
+                        [...range(start, prev + 1)]
+                    )
+                );
+                start = current;
+            }
+            prev = current;
+        }
+
+        // Add the final collection
+        collections.push(
+            new Collection(
+                this.head,
+                this.tail,
+                this.padding,
+                [...range(start, prev + 1)]
+            )
+        );
+
+        return collections;
+    }
+
+
     isCompatible(collection) {
         return (
             collection instanceof Collection &&
