@@ -1,4 +1,73 @@
-import { Collection } from "./seqo.js";
+import { range, Collection } from "./seqo.js";
+
+
+
+describe('range', () => {
+    test('range with one argument', () => {
+        expect([...range(5)]).toEqual([0, 1, 2, 3, 4]);
+        expect([...range(0)]).toEqual([]);
+        expect([...range(1)]).toEqual([0]);
+    });
+
+    test('range with two arguments', () => {
+        expect([...range(1, 6)]).toEqual([1, 2, 3, 4, 5]);
+        expect([...range(5, 5)]).toEqual([]);
+        expect([...range(-3, 3)]).toEqual([-3, -2, -1, 0, 1, 2]);
+    });
+
+    test('range with two arguments (start > stop)', () => {
+        expect([...range(5, 0)]).toEqual([5, 4, 3, 2, 1]);
+        expect([...range(10, 5)]).toEqual([10, 9, 8, 7, 6]);
+        expect([...range(3, -3)]).toEqual([3, 2, 1, 0, -1, -2]);
+    });
+
+    test('range with three arguments (positive step)', () => {
+        expect([...range(0, 10, 2)]).toEqual([0, 2, 4, 6, 8]);
+        expect([...range(1, 11, 3)]).toEqual([1, 4, 7, 10]);
+        expect([...range(5, 5, 1)]).toEqual([]);
+    });
+
+    test('range with three arguments (negative step)', () => {
+        expect([...range(5, 0, -1)]).toEqual([5, 4, 3, 2, 1]);
+        expect([...range(10, 0, -2)]).toEqual([10, 8, 6, 4, 2]);
+        expect([...range(5, 5, -1)]).toEqual([]);
+    });
+
+    test('range with large numbers', () => {
+        expect([...range(1e6, 1e6 + 5)]).toEqual([1000000, 1000001, 1000002, 1000003, 1000004]);
+        expect([...range(1e6 + 5, 1e6)]).toEqual([1000005, 1000004, 1000003, 1000002, 1000001]);
+    });
+
+    test('range is iterable', () => {
+        let sum = 0;
+        for (let i of range(1, 5)) {
+            sum += i;
+        }
+        expect(sum).toBe(10);
+    });
+
+    test('range with non-integer arguments', () => {
+        expect(() => [...range(1.5)]).toThrow("range() arguments must be integers");
+        expect(() => [...range(0, 1.5)]).toThrow("range() arguments must be integers");
+        expect(() => [...range(0, 5, 1.5)]).toThrow("range() arguments must be integers");
+    });
+
+    test('range with zero step', () => {
+        expect(() => [...range(0, 1, 0)]).toThrow("range() step argument must not be zero");
+    });
+
+    test('range with incompatible step', () => {
+        expect(() => [...range(0, 5, -1)]).toThrow("range() step argument incompatible with start/stop");
+        expect(() => [...range(5, 0, 1)]).toThrow("range() step argument incompatible with start/stop");
+    });
+
+    test('range with edge cases', () => {
+        expect([...range(0)]).toEqual([]);
+        expect([...range(0, 0)]).toEqual([]);
+        expect([...range(0, 0, 1)]).toEqual([]);
+        expect([...range(0, 0, -1)]).toEqual([]);
+    });
+});
 
 
 describe("Collection", () => {
@@ -283,5 +352,66 @@ describe('Collection.holes', () => {
         const holes = collection.holes;
         expect(holes).toBeInstanceOf(Collection);
         expect(holes.indexes).toEqual([4]);
+    });
+});
+
+
+describe('Collection.isContiguous', () => {
+    test('empty collection is contiguous', () => {
+        const collection = new Collection('file_', '.txt', 2, []);
+        expect(collection.isContiguous).toBe(true);
+    });
+
+    test('single element collection is contiguous', () => {
+        const collection = new Collection('file_', '.txt', 2, [1]);
+        expect(collection.isContiguous).toBe(true);
+    });
+
+    test('two consecutive elements are contiguous', () => {
+        const collection = new Collection('file_', '.txt', 2, [1, 2]);
+        expect(collection.isContiguous).toBe(true);
+    });
+
+    test('two non-consecutive elements are not contiguous', () => {
+        const collection = new Collection('file_', '.txt', 2, [1, 3]);
+        expect(collection.isContiguous).toBe(false);
+    });
+
+    test('large contiguous range is contiguous', () => {
+        const indexes = Array.from({length: 1000}, (_, i) => i + 1);
+        const collection = new Collection('file_', '.txt', 4, indexes);
+        expect(collection.isContiguous).toBe(true);
+    });
+
+    test('large range with one gap is not contiguous', () => {
+        const indexes = Array.from({length: 999}, (_, i) => i + 1);
+        indexes.push(1001);  // Add 1001, creating a gap at 1000
+        const collection = new Collection('file_', '.txt', 4, indexes);
+        expect(collection.isContiguous).toBe(false);
+    });
+
+    test('collection with multiple gaps is not contiguous', () => {
+        const collection = new Collection('file_', '.txt', 2, [1, 2, 4, 6, 8]);
+        expect(collection.isContiguous).toBe(false);
+    });
+
+    test('collection with gap at start relative to min is not contiguous', () => {
+        const collection = new Collection('file_', '.txt', 2, [5, 6, 7, 8]);
+        expect(collection.isContiguous).toBe(true);
+    });
+
+    test('collection with gap at end relative to max is not contiguous', () => {
+        const collection = new Collection('file_', '.txt', 2, [1, 2, 3, 5]);
+        expect(collection.isContiguous).toBe(false);
+    });
+
+    test('reverse ordered input should still be evaluated correctly', () => {
+        const collection = new Collection('file_', '.txt', 2, [5, 4, 3, 2, 1]);
+        expect(collection.isContiguous).toBe(true);
+    });
+
+    test('duplicate indexes should not affect contiguity', () => {
+        const collection = new Collection('file_', '.txt', 2, [1, 1, 2, 2, 3, 3]);
+        expect(collection.isContiguous).toBe(true);
     });
 });

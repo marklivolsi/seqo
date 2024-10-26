@@ -7,6 +7,42 @@ const PATTERNS = {
 }
 
 
+function range(start = 0, stop, step) {
+    if (stop === undefined) {
+        stop = start;
+        start = 0;
+    }
+
+    // Set default step based on start and stop values
+    if (step === undefined) {
+        step = start <= stop ? 1 : -1;
+    }
+
+    // Ensure all arguments are integers
+    if (!Number.isInteger(start) || !Number.isInteger(stop) || !Number.isInteger(step)) {
+        throw new Error("range() arguments must be integers");
+    }
+
+    if (step === 0) {
+        throw new Error("range() step argument must not be zero");
+    }
+
+    if ((start < stop && step < 0) || (start > stop && step > 0)) {
+        throw new Error("range() step argument incompatible with start/stop");
+    }
+
+    return {
+        [Symbol.iterator]: function* () {
+            let i = start;
+            while ((step > 0 && i < stop) || (step < 0 && i > stop)) {
+                yield i;
+                i += step;
+            }
+        }
+    };
+}
+
+
 class Collection {
 
     constructor(head, tail, padding, indexes) {
@@ -36,6 +72,19 @@ class Collection {
             }
         }
         return holes.length > 0 ? new Collection(this.head, this.tail, this.padding, holes) : null;
+    }
+
+    get isContiguous() {
+        if (this._indexes.size <= 1) return true;
+        const indexes = this.indexes;
+        const start = indexes[0];
+        const end = indexes[indexes.length - 1];
+        for (let i = start + 1; i < end; i++) {
+            if (!this._indexes.has(i)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     add(items) {
@@ -146,4 +195,4 @@ function assemble(strings, patterns=null, min_items=2, case_sensitive=true, assu
 
 }
 
-export { assemble, Collection };
+export { range, assemble, Collection };
