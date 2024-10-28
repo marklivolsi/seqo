@@ -244,14 +244,65 @@ class Collection {
         );
     }
 
-    format(pattern='{head}{padding}{tail} [{ranges}]') {
+    /**
+     * Format the collection according to a pattern string.
+     *
+     * @param {string} pattern - Format pattern string that can include placeholders:
+     *     {head} - Common leading part of the collection
+     *     {tail} - Common trailing part of the collection
+     *     {padding} - Padding format in %0d form
+     *     {range} - Total range in form start-end
+     *     {ranges} - Comma separated ranges of indexes
+     *     {holes} - Comma separated ranges of missing indexes
+     * @returns {string} - Formatted string representation of the collection
+     */
+    format(pattern = '{head}{padding}{tail} [{ranges}]') {
+        // Initialize data with basic collection properties
         const data = {
             head: this.head,
             tail: this.tail,
-            padding: this.padding ? `%0${this.padding}d` : `%d`,
-            holes: pattern.includes('{holes}') ? this.holes.format('{ranges}') : '',
+            padding: this.padding ? `%0${this.padding}d` : '%d'
+        };
 
+        // Create case-insensitive lookup for data properties
+        const dataLookup = Object.fromEntries(
+            Object.entries(data).map(([key, value]) => [key.toLowerCase(), value])
+        );
+
+        // Get sorted indexes for range calculations
+        const indexes = this.indexes;
+
+        // Handle holes if requested (case-insensitive check)
+        if (pattern.toLowerCase().includes('{holes}')) {
+            dataLookup.holes = this.holes?.format('{ranges}') ?? '';
         }
+
+        // Calculate range if needed for either {range} or {ranges} (case-insensitive check)
+        const patternLower = pattern.toLowerCase();
+        if (patternLower.includes('{range}') || patternLower.includes('{ranges}')) {
+            if (indexes.length === 0) {
+                dataLookup.range = '';
+            } else if (indexes.length === 1) {
+                dataLookup.range = `${indexes[0]}`;
+            } else {
+                dataLookup.range = `${indexes[0]}-${indexes[indexes.length - 1]}`;
+            }
+        }
+
+        // Calculate ranges if needed (case-insensitive check)
+        if (patternLower.includes('{ranges}')) {
+            const separated = this.separate();
+            const ranges = separated.length > 1
+                ? separated.map(coll => coll.format('{range}'))
+                : [dataLookup.range];
+            dataLookup.ranges = ranges.filter(r => r !== '').join(', ');
+        }
+
+        // Replace all placeholders in pattern, case-insensitive
+        return pattern.replace(/{(\w+)}/g, (match, key) => {
+            const normalizedKey = key.toLowerCase();
+            return dataLookup[normalizedKey] !== undefined ? dataLookup[normalizedKey] : match;
+        });
     }
 
     match(item) {

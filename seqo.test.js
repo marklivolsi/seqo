@@ -625,3 +625,161 @@ describe('Collection.separate', () => {
         expect(result[2].indexes).toEqual([7, 8]);
     });
 });
+
+
+describe('Collection.format', () => {
+    let collection;
+
+    beforeEach(() => {
+        collection = new Collection('file_', '.txt', 2, [1, 2, 3, 4, 5]);
+    });
+
+    // Basic formatting tests
+    test('formats with default pattern', () => {
+        expect(collection.format()).toBe('file_%02d.txt [1-5]');
+    });
+
+    test('formats with empty collection', () => {
+        const emptyCollection = new Collection('file_', '.txt', 2, []);
+        expect(emptyCollection.format()).toBe('file_%02d.txt []');
+    });
+
+    test('formats with single item collection', () => {
+        const singleCollection = new Collection('file_', '.txt', 2, [1]);
+        expect(singleCollection.format()).toBe('file_%02d.txt [1]');
+    });
+
+    // Individual placeholder tests
+    test('formats with head placeholder', () => {
+        expect(collection.format('{head}')).toBe('file_');
+    });
+
+    test('formats with tail placeholder', () => {
+        expect(collection.format('{tail}')).toBe('.txt');
+    });
+
+    test('formats with padding placeholder', () => {
+        expect(collection.format('{padding}')).toBe('%02d');
+
+        const noPadCollection = new Collection('v', '', 0, [1, 2, 3]);
+        expect(noPadCollection.format('{padding}')).toBe('%d');
+
+        const largePadCollection = new Collection('seq_', '.jpg', 4, [1, 2, 3]);
+        expect(largePadCollection.format('{padding}')).toBe('%04d');
+    });
+
+    test('formats with range placeholder', () => {
+        expect(collection.format('{range}')).toBe('1-5');
+
+        const singleCollection = new Collection('file_', '.txt', 2, [1]);
+        expect(singleCollection.format('{range}')).toBe('1');
+
+        const emptyCollection = new Collection('file_', '.txt', 2, []);
+        expect(emptyCollection.format('{range}')).toBe('');
+    });
+
+    test('formats with ranges placeholder', () => {
+        expect(collection.format('{ranges}')).toBe('1-5');
+
+        const discontinuousCollection = new Collection('file_', '.txt', 2, [1, 2, 4, 5, 7]);
+        expect(discontinuousCollection.format('{ranges}')).toBe('1-2, 4-5, 7');
+    });
+
+    test('formats with holes placeholder', () => {
+        const discontinuousCollection = new Collection('file_', '.txt', 2, [1, 2, 4, 5, 7]);
+        expect(discontinuousCollection.format('{holes}')).toBe('3, 6');
+
+        // No holes
+        expect(collection.format('{holes}')).toBe('');
+
+        // Single item (no holes possible)
+        const singleCollection = new Collection('file_', '.txt', 2, [1]);
+        expect(singleCollection.format('{holes}')).toBe('');
+    });
+
+    // Case sensitivity tests
+    test('handles case-insensitive placeholders', () => {
+        const pattern = '{HEAD}{PADDING}{TAIL} [{RANGES}]';
+        expect(collection.format(pattern)).toBe('file_%02d.txt [1-5]');
+    });
+
+    test('handles mixed case placeholders', () => {
+        const pattern = '{Head}{Padding}{TAIL} [{RaNgEs}]';
+        expect(collection.format(pattern)).toBe('file_%02d.txt [1-5]');
+    });
+
+    // Complex pattern tests
+    test('handles multiple placeholders', () => {
+        const pattern = 'Sequence {head} (pad: {padding}) contains: {ranges}. Missing: {holes}';
+        const discontinuousCollection = new Collection('file_', '.txt', 2, [1, 2, 4, 5, 7]);
+        expect(discontinuousCollection.format(pattern))
+            .toBe('Sequence file_ (pad: %02d) contains: 1-2, 4-5, 7. Missing: 3, 6');
+    });
+
+    test('preserves non-placeholder text', () => {
+        const pattern = 'Start-{head}-Middle-{tail}-End';
+        expect(collection.format(pattern)).toBe('Start-file_-Middle-.txt-End');
+    });
+
+    // Edge cases and error handling
+    test('handles unknown placeholders', () => {
+        expect(collection.format('{head} {unknown} {tail}'))
+            .toBe('file_ {unknown} .txt');
+    });
+
+    test('handles empty pattern', () => {
+        expect(collection.format('')).toBe('');
+    });
+
+    test('handles pattern with only placeholders', () => {
+        expect(collection.format('{head}{tail}')).toBe('file_.txt');
+    });
+
+    test('handles malformed placeholders', () => {
+        expect(collection.format('{head} {tai l} {rang es}'))
+            .toBe('file_ {tai l} {rang es}');
+    });
+
+    // Large sequence tests
+    test('handles formatting large sequences efficiently', () => {
+        const largeCollection = new Collection(
+            'frame_',
+            '.exr',
+            4,
+            Array.from({length: 1000}, (_, i) => i + 1)
+        );
+
+        const start = Date.now();
+        const result = largeCollection.format();
+        const duration = Date.now() - start;
+
+        expect(result).toBe('frame_%04d.exr [1-1000]');
+        expect(duration).toBeLessThan(100); // Should complete in under 100ms
+    });
+
+    // Special character handling
+    test('handles special characters in head/tail', () => {
+        const specialCollection = new Collection('file[_]', '.%txt', 2, [1, 2, 3]);
+        expect(specialCollection.format()).toBe('file[_]%02d.%txt [1-3]');
+    });
+
+    // Placeholder reuse
+    test('handles repeated placeholders', () => {
+        expect(collection.format('{head}_{head} {ranges} {ranges}'))
+            .toBe('file__file_ 1-5 1-5');
+    });
+
+    // Combinations of contiguous and non-contiguous ranges
+    test('formats complex range patterns', () => {
+        const complexCollection = new Collection('seq_', '.png', 3, [1, 2, 3, 5, 7, 8, 9, 11]);
+        expect(complexCollection.format())
+            .toBe('seq_%03d.png [1-3, 5, 7-9, 11]');
+    });
+
+    // Format chain testing
+    test('handles chained format calls', () => {
+        const discontinuousCollection = new Collection('file_', '.txt', 2, [1, 2, 4, 5, 7]);
+        const holesCollection = discontinuousCollection.holes;
+        expect(holesCollection.format('{ranges}')).toBe('3, 6');
+    });
+});
