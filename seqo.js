@@ -1,13 +1,81 @@
 
-
+/**
+ * Base pattern for matching digit sequences.
+ * @const {string}
+ * @example
+ * // Matches sequence of digits with optional leading zeros
+ */
 const DIGITS_PATTERN = '(?<index>(?<padding>0*)\\d+)'
-const PATTERNS = {
+
+
+/** @const {Object} Pattern definitions for common sequence formats */
+const PATTERNS = Object.freeze({
+
+    /**
+     * Pattern for matching plain digit sequences.
+     * @const {string}
+     * @example
+     * // Matches: "001", "1", "0123"
+     * // Does not match: "a1", "1.2", "v1"
+     */
     digits: DIGITS_PATTERN,
+
+    /**
+     * Pattern for matching frame number sequences in filenames.
+     * Expects digits between dots.
+     * @const {string}
+     * @example
+     * // Matches: ".001.", ".1.", ".0123."
+     * // Does not match: "001", ".1", "1.", ".a1."
+     */
     frames: `\\.${DIGITS_PATTERN}\\.`,
+
+    /**
+     * Pattern for matching version numbers.
+     * Expects 'v' prefix followed by digits.
+     * @const {string}
+     * @example
+     * // Matches: "v001", "v1", "v0123"
+     * // Does not match: "1", "ver1", "v1.0"
+     */
     versions: `v${DIGITS_PATTERN}`,
-}
+});
 
 
+/**
+ * Generates a sequence of integers from start (inclusive) to stop (exclusive),
+ * incrementing by step. If step is not provided, it defaults to 1 if start <= stop,
+ * and -1 otherwise. If only one argument is provided, it is interpreted as stop,
+ * and start defaults to 0.
+ *
+ * @param {number} [start=0] - The starting value of the sequence (inclusive).
+ *     Defaults to 0 when stop is provided. When stop is undefined, this value
+ *     is interpreted as stop and start becomes 0.
+ * @param {number} [stop] - The end value of the sequence (exclusive). When
+ *     undefined, start is used as stop and start becomes 0.
+ * @param {number} [step] - The difference between each number in the sequence.
+ *     Defaults to 1 when start <= stop, and -1 when start > stop. Must not be zero.
+ *
+ * @returns {Iterator} An iterator yielding integers in an arithmetic sequence.
+ *
+ * @throws {Error} If start, stop, or step are not integers.
+ * @throws {Error} If step is zero.
+ * @throws {Error} If step direction is incompatible with start/stop values
+ *     (e.g., positive step with start > stop).
+ *
+ * @example
+ * // Returns [0, 1, 2, 3, 4]
+ * [...range(5)]
+ *
+ * // Returns [2, 3, 4]
+ * [...range(2, 5)]
+ *
+ * // Returns [0, 2, 4]
+ * [...range(0, 5, 2)]
+ *
+ * // Returns [5, 4, 3, 2, 1]
+ * [...range(5, 0, -1)]
+ */
 function range(start = 0, stop, step) {
     if (stop === undefined) {
         stop = start;
@@ -44,8 +112,21 @@ function range(start = 0, stop, step) {
 }
 
 
+/**
+ * A class representing a collection of items with numeric indexes and consistent formatting.
+ * Collections maintain a set of unique indexes and format them with a common head, tail,
+ * and padding pattern.
+ */
 class Collection {
 
+    /**
+     * Creates a new Collection instance.
+     *
+     * @param {string} head - The prefix string that appears before each index
+     * @param {string} tail - The suffix string that appears after each index
+     * @param {number} padding - The number of digits to pad indexes to. Zero means no padding.
+     * @param {number[]} indexes - Array of non-negative integers representing the collection's indexes
+     */
     constructor(head, tail, padding, indexes) {
         this.head = head;
         this.tail = tail;
@@ -53,14 +134,30 @@ class Collection {
         this._indexes = new Set(indexes);
     }
 
+    /**
+     * Gets the sorted array of indexes in the collection.
+     *
+     * @returns {number[]} Array of indexes in ascending order
+     */
     get indexes() {
         return Array.from(this._indexes).sort((a, b) => a - b);
     }
 
+    /**
+     * Gets the formatted string representations of all members in the collection.
+     *
+     * @returns {string[]} Array of formatted strings with padded indexes
+     */
     get members() {
         return this.indexes.map(i => `${this.head}${String(i).padStart(this.padding, '0')}${this.tail}`);
     }
 
+    /**
+     * Gets a new Collection containing any missing indexes in the sequence.
+     *
+     * @returns {Collection|null} A new Collection containing missing indexes,
+     *     or null if there are no holes or fewer than 2 indexes
+     */
     get holes() {
         if (this._indexes.size < 2) return null;
         const indexes = this.indexes;
@@ -75,6 +172,11 @@ class Collection {
         return holes.length > 0 ? new Collection(this.head, this.tail, this.padding, holes) : null;
     }
 
+    /**
+     * Checks if the collection's indexes form a contiguous sequence.
+     *
+     * @returns {boolean} True if indexes form a contiguous sequence or collection has 0-1 indexes
+     */
     get isContiguous() {
         if (this._indexes.size <= 1) return true;
         const indexes = this.indexes;
@@ -88,6 +190,13 @@ class Collection {
         return true;
     }
 
+    /**
+     * Adds items to the collection. Items can be indexes, member strings, or compatible Collections.
+     *
+     * @param {(number|string|Collection|Array<number|string|Collection>)} items - Items to add
+     * @returns {Collection} The collection instance for chaining
+     * @throws {Error} If items are invalid or incompatible with the collection
+     */
     add(items) {
         if (!Array.isArray(items)) {
             items = [items];
@@ -236,6 +345,12 @@ class Collection {
         return collections;
     }
 
+    /**
+     * Checks if another collection has compatible formatting with this one.
+     *
+     * @param {Collection} collection - The collection to check for compatibility
+     * @returns {boolean} True if the collections have matching head, tail, and padding
+     */
     isCompatible(collection) {
         return (
             collection instanceof Collection &&
@@ -306,6 +421,13 @@ class Collection {
         });
     }
 
+    /**
+     * Attempts to match a string against the collection's pattern.
+     *
+     * @param {string} item - The string to match against the collection pattern
+     * @returns {RegExpExecArray|null} The match result containing index and padding groups,
+     *     or null if no match or padding requirements aren't met
+     */
     match(item) {
         const match = this.#expression().exec(item);
         if (!match) {
@@ -321,10 +443,15 @@ class Collection {
         return match;
     }
 
+    /**
+     * Creates a regular expression for matching collection members.
+     *
+     * @private
+     * @returns {RegExp} Regular expression with named capture groups for index and padding
+     */
     #expression() {
         return new RegExp(`^${this.head}(?<index>(?<padding>0*)\\d+?)${this.tail}$`);
     }
-
 
 }
 
@@ -480,5 +607,6 @@ function assemble(
 
     return [filteredCollections, sortedRemainder];
 }
+
 
 export { range, assemble, Collection, PATTERNS };
