@@ -2,6 +2,7 @@
 
 const DIGITS_PATTERN = '(?<index>(?<padding>0*)\\d+)'
 const PATTERNS = {
+    digits: DIGITS_PATTERN,
     frames: `\\.${DIGITS_PATTERN}\\.`,
     versions: `v${DIGITS_PATTERN}`,
 }
