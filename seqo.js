@@ -1,8 +1,8 @@
 
 
-const DIGITS_PATTERN = '(?P<index>(?P<padding>0*)\d+)'
+const DIGITS_PATTERN = '(?<index>(?<padding>0*)\\d+)'
 const PATTERNS = {
-    frames: `\\.${DIGITS_PATTERN}\\.\\D+\\d?$`,
+    frames: `\\.${DIGITS_PATTERN}\\.`,
     versions: `v${DIGITS_PATTERN}`,
 }
 
@@ -327,8 +327,157 @@ class Collection {
 
 }
 
-function assemble(strings, patterns=null, min_items=2, case_sensitive=true, assume_padded_when_ambiguous=false) {
 
+/**
+ * Assemble items into discrete collections based on their numeric patterns.
+ *
+ * @param {Iterable<string>} strings - Items to assemble into collections
+ * @param {Object} [options] - Optional configuration
+ * @param {(RegExp|string)[]} [options.patterns=null] - Optional patterns to limit collection possibilities
+ * @param {number} [options.minItems=2] - Minimum number of items a collection must have
+ * @param {boolean} [options.caseSensitive=true] - Whether to treat items as case-sensitive
+ * @param {boolean} [options.assumePaddedWhenAmbiguous=false] - Whether to assume padding in ambiguous cases
+ * @returns {[Collection[], string[]]} - Tuple of [collections, remainder] where collections contains
+ *                                      assembled Collection instances and remainder contains items that
+ *                                      didn't belong to any collection
+ */
+function assemble(
+    strings,
+    { patterns = null, minItems = 2, caseSensitive = true, assumePaddedWhenAmbiguous = false } = {}
+) {
+    const collectionMap = new Map();
+    const remainder = new Set();
+
+    // Early return for empty pattern list
+    if (patterns && patterns.length === 0) {
+        return [[], Array.from(strings)];
+    }
+
+    // Prepare patterns
+    const flags = caseSensitive ? 'g' : 'ig';
+    const compiledPatterns = patterns
+        ? patterns.map(pattern =>
+            typeof pattern === 'string'
+                ? new RegExp(pattern, flags)
+                : new RegExp(pattern.source, flags)
+        )
+        : [new RegExp(DIGITS_PATTERN, flags)];
+
+    // Process each string
+    for (const item of strings) {
+        let matched = false;
+
+        for (const pattern of compiledPatterns) {
+            pattern.lastIndex = 0;  // Reset regex state
+            const matches = item.matchAll(pattern);
+
+            for (const match of matches) {
+                const { index: matchIndex, groups } = match;
+                const { index, padding } = groups;
+
+                const fullMatch = match[0];
+                const numberStart = fullMatch.indexOf(index);
+
+                const head = item.slice(0, matchIndex + numberStart);
+                const tail = item.slice(matchIndex + numberStart + index.length);
+
+                const normalizedHead = caseSensitive ? head : head.toLowerCase();
+                const normalizedTail = caseSensitive ? tail : tail.toLowerCase();
+
+                const paddingLength = padding ? index.length : 0;
+
+                const key = `${normalizedHead}|${normalizedTail}|${paddingLength}`;
+
+                if (!collectionMap.has(key)) {
+                    collectionMap.set(key, {
+                        head,
+                        tail,
+                        padding: paddingLength,
+                        indexes: new Set()
+                    });
+                }
+
+                collectionMap.get(key).indexes.add(parseInt(index, 10));
+                matched = true;
+            }
+        }
+
+        if (!matched) {
+            remainder.add(item);
+        }
+    }
+
+    // Convert to collections
+    const allCollections = [];
+    const mergeCandidates = [];
+
+    // Create collections
+    for (const { head, tail, padding, indexes } of collectionMap.values()) {
+        const collection =  new Collection(head, tail, padding, indexes);
+        allCollections.push(collection);
+        if (padding === 0) {
+            mergeCandidates.push(collection);
+        }
+    }
+
+    // Handle padding boundary merges
+    const fullyMerged = new Set();
+    for (const collection of allCollections) {
+        if (collection.padding === 0) continue;
+
+        for (const candidate of mergeCandidates) {
+            if (candidate.head === collection.head &&
+                candidate.tail === collection.tail) {
+
+                let mergedIndexCount = 0;
+
+                for (const index of candidate.indexes) {
+                    // Only merge if index matches the padding width
+                    if (String(Math.abs(index)).length === collection.padding) {
+                        collection.add(index);
+                        mergedIndexCount++;
+                    }
+                }
+
+                // If all indexes were merged, mark candidate for removal
+                if (mergedIndexCount === candidate.indexes.length) {
+                    fullyMerged.add(candidate);
+                }
+            }
+        }
+    }
+
+    // Filter out fully merged collections
+    const mergedCollections = allCollections.filter(c => !fullyMerged.has(c));
+
+    // Filter out collections with fewer than minItems indexes
+    const filteredCollections = [];
+    for (const collection of mergedCollections) {
+        if (collection._indexes.size >= minItems) {
+            filteredCollections.push(collection);
+        } else {
+            collection.members.forEach(i => remainder.add(i));
+        }
+    }
+
+    // Handle padding ambiguity
+    if (assumePaddedWhenAmbiguous) {
+        for (const collection of filteredCollections) {
+            const indexes = collection.indexes;
+            if (!collection.padding && indexes.length > 0) {
+                const firstWidth = String(indexes[0]).length;
+                const lastWidth = String(indexes[indexes.length - 1]).length;
+                if (firstWidth === lastWidth) {
+                    collection.padding = firstWidth;
+                }
+            }
+        }
+    }
+
+    // Sort remainder
+    const sortedRemainder = Array.from(remainder).sort((a, b) => a - b)
+
+    return [filteredCollections, sortedRemainder];
 }
 
-export { range, assemble, Collection };
+export { range, assemble, Collection, PATTERNS };
