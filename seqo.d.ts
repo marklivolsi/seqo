@@ -1,3 +1,27 @@
+/**
+ * Interface defining the constructor options for Collection class.
+ */
+interface CollectionOptions {
+    /** The prefix string that appears before each index */
+    head?: string;
+    /** The suffix string that appears after each index */
+    tail?: string;
+    /** The number of digits to pad indexes to. Zero means no padding. */
+    padding?: number;
+    /** Array or Set of non-negative integers representing the collection's indexes */
+    indexes?: number[] | Set<number>;
+}
+
+/**
+ * Type for valid items that can be added to or removed from a Collection
+ */
+type CollectionItem = number | string | Collection;
+
+/**
+ * Type for valid input to add/remove methods
+ */
+type CollectionInput = CollectionItem | Array<CollectionItem> | Set<CollectionItem>;
+
 export declare class Collection {
     head: string;
     tail: string;
@@ -7,10 +31,10 @@ export declare class Collection {
     readonly holes: Collection | null;
     readonly isContiguous: boolean;
 
-    constructor(head: string, tail: string, padding: number, indexes: number[]);
+    constructor(options?: CollectionOptions);
 
-    add(items: number | string | Collection | Array<number | string | Collection>): this;
-    remove(items: number | string | Collection | Array<number | string | Collection>, options?: {strict?: boolean}): this;
+    add(items: CollectionInput): this;
+    remove(items: CollectionInput, options?: {strict?: boolean}): this;
     separate(): Collection[];
     isCompatible(collection: Collection): boolean;
     format(pattern?: string): string;

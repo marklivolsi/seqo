@@ -122,16 +122,22 @@ class Collection {
     /**
      * Creates a new Collection instance.
      *
-     * @param {string} head - The prefix string that appears before each index
-     * @param {string} tail - The suffix string that appears after each index
-     * @param {number} padding - The number of digits to pad indexes to. Zero means no padding.
-     * @param {number[]} indexes - Array of non-negative integers representing the collection's indexes
+     * @param {Object} options - Configuration options
+     * @param {string} [options.head=""] - The prefix string that appears before each index
+     * @param {string} [options.tail=""] - The suffix string that appears after each index
+     * @param {number} [options.padding=0] - The number of digits to pad indexes to. Zero means no padding.
+     * @param {number[]} [options.indexes=[]] - Array of non-negative integers representing the collection's indexes
      */
-    constructor(head, tail, padding, indexes) {
+    constructor({
+        head = "",
+        tail = "",
+        padding = 0,
+        indexes = []
+    } = {}) {
         this.head = head;
         this.tail = tail;
         this.padding = padding;
-        this._indexes = new Set(indexes ?? []);
+        this._indexes = new Set(indexes);
         this.#validate();
     }
 
@@ -191,7 +197,13 @@ class Collection {
                 holes.push(i);
             }
         }
-        return holes.length > 0 ? new Collection(this.head, this.tail, this.padding, holes) : null;
+        return holes.length > 0 ?
+            new Collection({
+                head: this.head,
+                tail: this.tail,
+                padding: this.padding,
+                indexes: holes})
+            : null;
     }
 
     /**
@@ -220,7 +232,8 @@ class Collection {
      * @throws {Error} If items are invalid or incompatible with the collection
      */
     add(items) {
-        if (!Array.isArray(items)) {
+
+        if (!Array.isArray(items) && !(items instanceof Set)) {
             items = [items];
         }
 
@@ -272,7 +285,7 @@ class Collection {
      * @throws {Error} If strict mode is enabled and invalid items are provided
      */
     remove(items, { strict = false } = {}) {
-        if (!Array.isArray(items)) {
+        if (!Array.isArray(items) && !(items instanceof Set)) {
             items = [items];
         }
 
@@ -317,12 +330,22 @@ class Collection {
     separate() {
         // Handle empty collection case
         if (this._indexes.size === 0) {
-            return [new Collection(this.head, this.tail, this.padding, [])];
+            return [new Collection({
+                head: this.head,
+                tail: this.tail,
+                padding: this.padding,
+                indexes: []
+            })];
         }
 
         // If already contiguous, return this collection as single element
         if (this.isContiguous) {
-            return [new Collection(this.head, this.tail, this.padding, this.indexes)];
+            return [new Collection({
+                head: this.head,
+                tail: this.tail,
+                padding: this.padding,
+                indexes: this._indexes
+            })];
         }
 
         const collections = [];
@@ -332,7 +355,12 @@ class Collection {
 
         // Handle single element case
         if (indexes.length === 1) {
-            return [new Collection(this.head, this.tail, this.padding, [start])];
+            return [new Collection({
+                head: this.head,
+                tail: this.tail,
+                padding: this.padding,
+                indexes: [start]
+            })];
         }
 
         // Iterate through sorted indexes finding breaks in continuity
@@ -342,12 +370,12 @@ class Collection {
             // If we find a gap, create a new collection
             if (current !== prev + 1) {
                 collections.push(
-                    new Collection(
-                        this.head,
-                        this.tail,
-                        this.padding,
-                        [...range(start, prev + 1)]
-                    )
+                    new Collection({
+                        head: this.head,
+                        tail: this.tail,
+                        padding: this.padding,
+                        indexes: [...range(start, prev + 1)
+                    ]})
                 );
                 start = current;
             }
@@ -356,12 +384,12 @@ class Collection {
 
         // Add the final collection
         collections.push(
-            new Collection(
-                this.head,
-                this.tail,
-                this.padding,
-                [...range(start, prev + 1)]
-            )
+            new Collection({
+                    head: this.head,
+                    tail: this.tail,
+                    padding: this.padding,
+                    indexes: [...range(start, prev + 1)
+            ]})
         );
 
         return collections;
@@ -563,7 +591,12 @@ function assemble(
 
     // Create collections
     for (const { head, tail, padding, indexes } of collectionMap.values()) {
-        const collection =  new Collection(head, tail, padding, indexes);
+        const collection =  new Collection({
+            head: head,
+            tail: tail,
+            padding: padding,
+            indexes: indexes
+        });
         allCollections.push(collection);
         if (padding === 0) {
             mergeCandidates.push(collection);
@@ -700,7 +733,12 @@ function parseCollection(string, {pattern = '{head}{padding}{tail} [{ranges}]'} 
     const tail = groups.tail ?? '';
     const padding = groups.padding ? parseInt(groups.padding, 10) : 0;
 
-    const collection = new Collection(head, tail, padding, []);
+    const collection = new Collection({
+        head: head,
+        tail: tail,
+        padding: padding,
+        indexes: []
+    });
 
     try {
 

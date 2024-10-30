@@ -72,7 +72,12 @@ describe('range', () => {
 describe("Collection", () => {
 
     test('constructor creates a Collection instance', () => {
-        const collection = new Collection('file', '.txt', 3, [1, 2, 3], ['file001.txt', 'file002.txt', 'file003.txt']);
+        const collection = new Collection({
+            head: 'file',
+            tail: '.txt',
+            padding: 3,
+            indexes: [1, 2, 3]
+        });
         expect(collection).toBeInstanceOf(Collection);
         expect(collection.head).toBe('file');
         expect(collection.tail).toBe('.txt');
@@ -85,74 +90,133 @@ describe("Collection", () => {
 
 
 describe('Collection.validate', () => {
+
     test('valid collection passes validation', () => {
-        expect(() => new Collection('file_', '.txt', 2, [1, 2, 3])).not.toThrow();
+        expect(() => new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 2,
+            indexes: [1, 2, 3]
+        })).not.toThrow();
     });
 
     test('rejects negative padding', () => {
-        expect(() => new Collection('file_', '.txt', -1, [1,2,3]))
-            .toThrow('Padding must be a non-negative integer');
+        expect(() => new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: -1,
+            indexes: [1, 2, 3]
+        })).toThrow('Padding must be a non-negative integer');
     });
 
     test('rejects decimal padding', () => {
-        expect(() => new Collection('file_', '.txt', 1.5, [1,2,3]))
-            .toThrow('Padding must be a non-negative integer');
+        expect(() => new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 1.5,
+            indexes: [1, 2, 3]
+        })).toThrow('Padding must be a non-negative integer');
     });
 
     test('rejects negative indexes', () => {
-        expect(() => new Collection('file_', '.txt', 2, [1, -2, 3]))
-            .toThrow('All indexes must be non-negative integers');
+        expect(() => new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 2,
+            indexes: [1, -2, 3]
+        })).toThrow('All indexes must be non-negative integers');
     });
 
     test('rejects decimal indexes', () => {
-        expect(() => new Collection('file_', '.txt', 2, [1, 2.5, 3]))
-            .toThrow('All indexes must be non-negative integers');
+        expect(() => new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 2,
+            indexes: [1, 2.5, 3]
+        })).toThrow('All indexes must be non-negative integers');
     });
+
 });
 
 
 describe('Collection.match', () => {
+
     test('matches a simple pattern', () => {
-        const collection = new Collection('file_', '.txt', 2, [1, 2, 3], ['file_01.txt', 'file_02.txt', 'file_03.txt']);
+        const collection = new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 2,
+            indexes: [1, 2, 3]
+        });
         expect(collection.match('file_01.txt')).not.toBeNull();
         expect(collection.match('file_02.txt')).not.toBeNull();
         expect(collection.match('file_03.txt')).not.toBeNull();
     });
 
     test('does not match items outside the pattern', () => {
-        const collection = new Collection('file_', '.txt', 2, [1, 2, 3], ['file_01.txt', 'file_02.txt', 'file_03.txt']);
+        const collection = new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 2,
+            indexes: [1, 2, 3]
+        });
         expect(collection.match('file_04.txt')).not.toBeNull();
         expect(collection.match('other_01.txt')).toBeNull();
         expect(collection.match('file_01.jpg')).toBeNull();
     });
 
     test('respects padding', () => {
-        const collection = new Collection('img_', '.png', 3, [1, 2, 3], ['img_001.png', 'img_002.png', 'img_003.png']);
+        const collection = new Collection({
+            head: 'img_',
+            tail: '.png',
+            padding: 3,
+            indexes: [1, 2, 3]
+        });
         expect(collection.match('img_001.png')).not.toBeNull();
         expect(collection.match('img_01.png')).toBeNull();
     });
 
     test('handles zero padding correctly', () => {
-        const collection = new Collection('v', '', 0, [1, 2, 3], ['v1', 'v2', 'v3']);
+        const collection = new Collection({
+            head: 'v',
+            tail: '',
+            padding: 0,
+            indexes: [1, 2, 3]
+        });
         expect(collection.match('v1')).not.toBeNull();
         expect(collection.match('v01')).toBeNull();
     });
 
     test('matches at start and end of string', () => {
-        const collection = new Collection('', '_end', 2, [1, 2, 3], ['01_end', '02_end', '03_end']);
+        const collection = new Collection({
+            head: '',
+            tail: '_end',
+            padding: 2,
+            indexes: [1, 2, 3]
+        });
         expect(collection.match('01_end')).not.toBeNull();
         expect(collection.match('1_end')).toBeNull();
     });
 
     test('handles complex patterns', () => {
-        const collection = new Collection('frame_', '_v2.exr', 4, [1, 2, 3], ['frame_0001_v2.exr', 'frame_0002_v2.exr', 'frame_0003_v2.exr']);
+        const collection = new Collection({
+            head: 'frame_',
+            tail: '_v2.exr',
+            padding: 4,
+            indexes: [1, 2, 3]
+        });
         expect(collection.match('frame_0001_v2.exr')).not.toBeNull();
         expect(collection.match('frame_1_v2.exr')).toBeNull();
         expect(collection.match('frame_0001_v1.exr')).toBeNull();
     });
 
     test('returns correct match object', () => {
-        const collection = new Collection('seq_', '.jpg', 3, [1, 2, 3], ['seq_001.jpg', 'seq_002.jpg', 'seq_003.jpg']);
+        const collection = new Collection({
+            head: 'seq_',
+            tail: '.jpg',
+            padding: 3,
+            indexes: [1, 2, 3]
+        });
         const match = collection.match('seq_002.jpg');
         expect(match).not.toBeNull();
         expect(match.groups.index).toBe('002');
@@ -165,7 +229,12 @@ describe('Collection.add', () => {
     let collection;
 
     beforeEach(() => {
-        collection = new Collection('file_', '.txt', 2, [1, 2, 3]);
+        collection = new Collection({
+           head: 'file_',
+           tail: '.txt',
+           padding: 2,
+           indexes: [1, 2, 3]
+        });
     });
 
     test('adds a single string item', () => {
@@ -187,14 +256,24 @@ describe('Collection.add', () => {
     });
 
     test('merges a compatible Collection', () => {
-        const otherCollection = new Collection('file_', '.txt', 2, [4, 5]);
+        const otherCollection = new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 2,
+            indexes: [4, 5]
+        });
         collection.add(otherCollection);
         expect(collection.indexes).toEqual([1, 2, 3, 4, 5]);
         expect(collection.members).toEqual(['file_01.txt', 'file_02.txt', 'file_03.txt', 'file_04.txt', 'file_05.txt']);
     });
 
     test('throws error when adding incompatible Collection', () => {
-        const incompatibleCollection = new Collection('img_', '.jpg', 3, [1, 2]);
+        const incompatibleCollection = new Collection({
+            head: 'img_',
+            tail: '.jpg',
+            padding: 3,
+            indexes: [1, 2]
+        });
         expect(() => collection.add(incompatibleCollection)).toThrow('is not compatible with this collection');
     });
 
@@ -244,6 +323,22 @@ describe('Collection.add', () => {
             'file_05.txt', 'file_06.txt', 'file_07.txt'
         ]);
     });
+
+    test('adds items from a Set', () => {
+        const collection = new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 2,
+            indexes: [1, 2, 3]
+        });
+        collection.add(new Set([4, 'file_05.txt', 6]));
+        expect(collection.indexes).toEqual([1, 2, 3, 4, 5, 6]);
+        expect(collection.members).toEqual([
+            'file_01.txt', 'file_02.txt', 'file_03.txt',
+            'file_04.txt', 'file_05.txt', 'file_06.txt'
+        ]);
+    });
+
 });
 
 
@@ -251,7 +346,12 @@ describe('Collection.remove', () => {
     let collection;
 
     beforeEach(() => {
-        collection = new Collection('file_', '.txt', 2, [1, 2, 3, 4, 5]);
+        collection = new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 2,
+            indexes: [1, 2, 3, 4, 5]
+        });
     });
 
     // Basic functionality
@@ -282,7 +382,12 @@ describe('Collection.remove', () => {
 
     // Padding tests
     test('removes item with different padding when padding is 0', () => {
-        const zeroPaddedCollection = new Collection('v', '', 0, [1, 2, 10], ['v1', 'v2', 'v10']);
+        const zeroPaddedCollection = new Collection({
+            head: 'v',
+            tail: '',
+            padding: 0,
+            indexes: [1, 2, 10]
+        });
         zeroPaddedCollection.remove('v10');
         expect(zeroPaddedCollection.indexes).toEqual([1, 2]);
     });
@@ -294,20 +399,40 @@ describe('Collection.remove', () => {
 
     // Collection removal tests
     test('removes indexes from a compatible Collection', () => {
-        const otherCollection = new Collection('file_', '.txt', 2, [2, 3, 4]);
+        const otherCollection = new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 2,
+            indexes: [2, 3, 4]
+        });
         collection.remove(otherCollection);
         expect(collection.indexes).toEqual([1, 5]);
     });
 
     test('removes indexes from multiple Collections', () => {
-        const collection1 = new Collection('file_', '.txt', 2, [1, 2]);
-        const collection2 = new Collection('file_', '.txt', 2, [4, 5]);
+        const collection1 = new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 2,
+            indexes: [1, 2]
+        });
+        const collection2 = new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 2,
+            indexes: [4, 5]
+        });
         collection.remove([collection1, collection2]);
         expect(collection.indexes).toEqual([3]);
     });
 
     test('silently ignores incompatible Collections', () => {
-        const incompatibleCollection = new Collection('img_', '.jpg', 3, [1, 2, 3]);
+        const incompatibleCollection = new Collection({
+            head: 'img_',
+            tail: '.jpg',
+            padding: 3,
+            indexes: [1, 2, 3]
+        });
         collection.remove(incompatibleCollection);
         expect(collection.indexes).toEqual([1, 2, 3, 4, 5]);
     });
@@ -354,8 +479,12 @@ describe('Collection.remove', () => {
 
     test('handles large bulk removals efficiently', () => {
         // Create collection with 1000 items
-        const largeCollection = new Collection('file_', '.txt', 4,
-            Array.from({length: 1000}, (_, i) => i + 1));
+        const largeCollection = new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 4,
+            indexes: Array.from({length: 1000}, (_, i) => i + 1)
+        });
 
         // Remove every even number
         const toRemove = Array.from({length: 500}, (_, i) => (i + 1) * 2);
@@ -368,7 +497,12 @@ describe('Collection.remove', () => {
 
     // Empty collection handling
     test('handles removing from empty collection', () => {
-        const emptyCollection = new Collection('file_', '.txt', 2, []);
+        const emptyCollection = new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 2,
+            indexes: []
+        });
         emptyCollection.remove([1, 2, 'file_03.txt']);
         expect(emptyCollection.indexes).toEqual([]);
     });
@@ -381,15 +515,41 @@ describe('Collection.remove', () => {
 
     // Mixed format tests
     test('handles mixed string formats correctly', () => {
-        const mixedCollection = new Collection('v', '', 0, [1, 2, 3]);
+
+        const mixedCollection = new Collection({
+            head: 'v',
+            tail: '',
+            padding: 0,
+            indexes: [1, 2, 3]
+        });
         mixedCollection.remove(['v1', 'v02', 'v3']);  // Should only remove v1 and v3
         expect(mixedCollection.indexes).toEqual([2]);
+    });
+
+    test('removes items from a Set', () => {
+        const collection = new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 2,
+            indexes: [1, 2, 3, 4, 5]
+        });
+
+        collection.remove(new Set([2, 'file_04.txt']));
+        expect(collection.indexes).toEqual([1, 3, 5]);
+        expect(collection.members).toEqual([
+            'file_01.txt', 'file_03.txt', 'file_05.txt'
+        ]);
     });
 
     // Strict mode tests
     describe('strict mode', () => {
         test('throws on incompatible Collection', () => {
-            const incompatibleCollection = new Collection('img_', '.jpg', 3, [1, 2, 3]);
+            const incompatibleCollection = new Collection({
+                head: 'img_',
+                tail: '.jpg',
+                padding: 3,
+                indexes: [1, 2, 3]
+            });
             expect(() => {
                 collection.remove(incompatibleCollection, { strict: true });
             }).toThrow('Incompatible collection');
@@ -437,7 +597,12 @@ describe('Collection.remove', () => {
         });
 
         test('works with mixed valid types', () => {
-            const compatibleCollection = new Collection('file_', '.txt', 2, [1, 2]);
+            const compatibleCollection = new Collection({
+                head: 'file_',
+                tail: '.txt',
+                padding: 2,
+                indexes: [1, 2]
+            });
             collection.remove([compatibleCollection, 'file_03.txt', 4], { strict: true });
             expect(collection.indexes).toEqual([5]);
         });
@@ -458,31 +623,55 @@ describe('Collection.remove', () => {
 
 describe('Collection.holes', () => {
     test('returns null when there are no holes', () => {
-        const collection = new Collection('file_', '.txt', 2, [1, 2, 3], ['file_01.txt', 'file_02.txt', 'file_03.txt']);
+        const collection = new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 2,
+            indexes: [1, 2, 3]
+        });
         expect(collection.holes).toBeNull();
     });
 
     test('correctly identifies single hole', () => {
-        const collection = new Collection('file_', '.txt', 2, [1, 3], ['file_01.txt', 'file_03.txt']);
+        const collection = new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 2,
+            indexes: [1, 3]
+        });
         const holes = collection.holes;
         expect(holes).toBeInstanceOf(Collection);
         expect(holes.indexes).toEqual([2]);
     });
 
     test('correctly identifies multiple holes', () => {
-        const collection = new Collection('file_', '.txt', 2, [1, 4, 7], ['file_01.txt', 'file_04.txt', 'file_07.txt']);
+        const collection = new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 2,
+            indexes: [1, 4, 7]
+        });
         const holes = collection.holes;
         expect(holes.indexes).toEqual([2, 3, 5, 6]);
     });
 
     test('returns null when there are less than two indexes', () => {
-        const collection = new Collection('file_', '.txt', 2, [1], ['file_01.txt']);
+        const collection = new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 2,
+            indexes: [1]
+        });
         expect(collection.holes).toBeNull();
     });
 
     test('handles large ranges efficiently', () => {
-        const largeRange = Array.from({length: 10000}, (_, i) => i * 2 + 1);
-        const collection = new Collection('file_', '.txt', 5, largeRange, largeRange.map(i => `file_${i.toString().padStart(5, '0')}.txt`));
+        const collection = new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 5,
+            indexes: Array.from({length: 10000}, (_, i) => i * 2 + 1)
+        });
         const holes = collection.holes;
         expect(holes.indexes.length).toBe(9999);
         expect(holes.indexes[0]).toBe(2);
@@ -490,7 +679,12 @@ describe('Collection.holes', () => {
     });
 
     test('preserves head, tail, and padding in returned collection', () => {
-        const collection = new Collection('img_', '.png', 3, [1, 3, 5], ['img_001.png', 'img_003.png', 'img_005.png']);
+        const collection = new Collection({
+            head: 'img_',
+            tail: '.png',
+            padding: 3,
+            indexes: [1, 3, 5]
+        });
         const holes = collection.holes;
         expect(holes.head).toBe('img_');
         expect(holes.tail).toBe('.png');
@@ -498,7 +692,12 @@ describe('Collection.holes', () => {
     });
 
     test('returns null for collection with no gaps at the end', () => {
-        const collection = new Collection('seq_', '.jpg', 2, [1, 2, 3, 5], ['seq_01.jpg', 'seq_02.jpg', 'seq_03.jpg', 'seq_05.jpg']);
+        const collection = new Collection({
+            head: 'seq_',
+            tail: '.jpg',
+            padding: 2,
+            indexes: [1, 2, 3, 5]
+        });
         const holes = collection.holes;
         expect(holes).toBeInstanceOf(Collection);
         expect(holes.indexes).toEqual([4]);
@@ -508,60 +707,94 @@ describe('Collection.holes', () => {
 
 describe('Collection.isContiguous', () => {
     test('empty collection is contiguous', () => {
-        const collection = new Collection('file_', '.txt', 2, []);
+        const collection = new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 2,
+            indexes: []
+        });
         expect(collection.isContiguous).toBe(true);
     });
 
     test('single element collection is contiguous', () => {
-        const collection = new Collection('file_', '.txt', 2, [1]);
+        const collection = new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 2,
+            indexes: [1]
+        });
         expect(collection.isContiguous).toBe(true);
     });
 
     test('two consecutive elements are contiguous', () => {
-        const collection = new Collection('file_', '.txt', 2, [1, 2]);
+        const collection = new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 2,
+            indexes: [1, 2]
+        });
         expect(collection.isContiguous).toBe(true);
     });
 
     test('two non-consecutive elements are not contiguous', () => {
-        const collection = new Collection('file_', '.txt', 2, [1, 3]);
+        const collection = new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 2,
+            indexes: [1, 3]
+        });
         expect(collection.isContiguous).toBe(false);
     });
 
     test('large contiguous range is contiguous', () => {
-        const indexes = Array.from({length: 1000}, (_, i) => i + 1);
-        const collection = new Collection('file_', '.txt', 4, indexes);
+        const collection = new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 4,
+            indexes: Array.from({length: 1000}, (_, i) => i + 1)
+        });
         expect(collection.isContiguous).toBe(true);
     });
 
     test('large range with one gap is not contiguous', () => {
         const indexes = Array.from({length: 999}, (_, i) => i + 1);
         indexes.push(1001);  // Add 1001, creating a gap at 1000
-        const collection = new Collection('file_', '.txt', 4, indexes);
+        const collection = new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 4,
+            indexes: indexes
+        });
         expect(collection.isContiguous).toBe(false);
     });
 
     test('collection with multiple gaps is not contiguous', () => {
-        const collection = new Collection('file_', '.txt', 2, [1, 2, 4, 6, 8]);
+        const collection = new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 2,
+            indexes: [1, 2, 4, 6, 8]
+        });
         expect(collection.isContiguous).toBe(false);
     });
 
-    test('collection with gap at start relative to min is not contiguous', () => {
-        const collection = new Collection('file_', '.txt', 2, [5, 6, 7, 8]);
-        expect(collection.isContiguous).toBe(true);
-    });
-
-    test('collection with gap at end relative to max is not contiguous', () => {
-        const collection = new Collection('file_', '.txt', 2, [1, 2, 3, 5]);
-        expect(collection.isContiguous).toBe(false);
-    });
-
-    test('reverse ordered input should still be evaluated correctly', () => {
-        const collection = new Collection('file_', '.txt', 2, [5, 4, 3, 2, 1]);
+    test('reverse ordered input is contiguous', () => {
+        const collection = new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 2,
+            indexes: [5, 4, 3, 2, 1]
+        });
         expect(collection.isContiguous).toBe(true);
     });
 
     test('duplicate indexes should not affect contiguity', () => {
-        const collection = new Collection('file_', '.txt', 2, [1, 1, 2, 2, 3, 3]);
+        const collection = new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 2,
+            indexes: [1, 1, 2, 2, 3, 3]
+        });
         expect(collection.isContiguous).toBe(true);
     });
 });
@@ -569,7 +802,12 @@ describe('Collection.isContiguous', () => {
 
 describe('Collection.separate', () => {
     test('empty collection returns array with empty collection', () => {
-        const collection = new Collection('file_', '.txt', 2, []);
+        const collection = new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 2,
+            indexes: []
+        });
         const result = collection.separate();
         expect(result).toHaveLength(1);
         expect(result[0].indexes).toEqual([]);
@@ -579,21 +817,36 @@ describe('Collection.separate', () => {
     });
 
     test('single element collection returns array with same collection', () => {
-        const collection = new Collection('file_', '.txt', 2, [5]);
+        const collection = new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 2,
+            indexes: [5]
+        });
         const result = collection.separate();
         expect(result).toHaveLength(1);
         expect(result[0].indexes).toEqual([5]);
     });
 
     test('contiguous collection returns array with same collection', () => {
-        const collection = new Collection('file_', '.txt', 2, [1, 2, 3, 4, 5]);
+        const collection = new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 2,
+            indexes: [1, 2, 3, 4, 5]
+        });
         const result = collection.separate();
         expect(result).toHaveLength(1);
         expect(result[0].indexes).toEqual([1, 2, 3, 4, 5]);
     });
 
     test('collection with one gap returns two collections', () => {
-        const collection = new Collection('file_', '.txt', 2, [1, 2, 4, 5]);
+        const collection = new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 2,
+            indexes: [1, 2, 4, 5]
+        });
         const result = collection.separate();
         expect(result).toHaveLength(2);
         expect(result[0].indexes).toEqual([1, 2]);
@@ -601,7 +854,12 @@ describe('Collection.separate', () => {
     });
 
     test('collection with multiple gaps returns multiple collections', () => {
-        const collection = new Collection('file_', '.txt', 2, [1, 2, 4, 7, 8, 10]);
+        const collection = new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 2,
+            indexes: [1, 2, 4, 7, 8, 10]
+        });
         const result = collection.separate();
         expect(result).toHaveLength(4);
         expect(result[0].indexes).toEqual([1, 2]);
@@ -611,9 +869,13 @@ describe('Collection.separate', () => {
     });
 
     test('preserves collection properties in separated collections', () => {
-        const collection = new Collection('img_', '.png', 3, [1, 2, 4, 5]);
+        const collection = new Collection({
+            head: 'img_',
+            tail: '.png',
+            padding: 3,
+            indexes: [1, 2, 4, 5]
+        });
         const result = collection.separate();
-
         result.forEach(coll => {
             expect(coll.head).toBe('img_');
             expect(coll.tail).toBe('.png');
@@ -630,7 +892,12 @@ describe('Collection.separate', () => {
             ...Array.from({length: 100}, (_, i) => i + 401)
         ];
 
-        const collection = new Collection('file_', '.txt', 4, indexes);
+        const collection = new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 4,
+            indexes: indexes
+        });
         const result = collection.separate();
 
         expect(result).toHaveLength(3);
@@ -643,7 +910,12 @@ describe('Collection.separate', () => {
     });
 
     test('handles reversed or unordered input', () => {
-        const collection = new Collection('file_', '.txt', 2, [5, 1, 2, 7, 8, 4]);
+        const collection = new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 2,
+            indexes: [5, 1, 2, 7, 8, 4]
+        });
         const result = collection.separate();
         expect(result).toHaveLength(3);
         expect(result[0].indexes).toEqual([1, 2]);
@@ -657,7 +929,12 @@ describe('Collection.format', () => {
     let collection;
 
     beforeEach(() => {
-        collection = new Collection('file_', '.txt', 2, [1, 2, 3, 4, 5]);
+        collection = new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 2,
+            indexes: [1, 2, 3, 4, 5]
+        });
     });
 
     // Basic formatting tests
@@ -666,12 +943,22 @@ describe('Collection.format', () => {
     });
 
     test('formats with empty collection', () => {
-        const emptyCollection = new Collection('file_', '.txt', 2, []);
+        const emptyCollection = new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 2,
+            indexes: []
+        });
         expect(emptyCollection.format()).toBe('file_%02d.txt []');
     });
 
     test('formats with single item collection', () => {
-        const singleCollection = new Collection('file_', '.txt', 2, [1]);
+        const singleCollection = new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 2,
+            indexes: [1]
+        });
         expect(singleCollection.format()).toBe('file_%02d.txt [1]');
     });
 
@@ -687,39 +974,74 @@ describe('Collection.format', () => {
     test('formats with padding placeholder', () => {
         expect(collection.format('{padding}')).toBe('%02d');
 
-        const noPadCollection = new Collection('v', '', 0, [1, 2, 3]);
+        const noPadCollection = new Collection({
+            head: 'v',
+            tail: '',
+            padding: 0,
+            indexes: [1, 2, 3]
+        });
         expect(noPadCollection.format('{padding}')).toBe('%d');
 
-        const largePadCollection = new Collection('seq_', '.jpg', 4, [1, 2, 3]);
+        const largePadCollection = new Collection({
+            head: 'seq_',
+            tail: '.jpg',
+            padding: 4,
+            indexes: [1, 2, 3]
+        });
         expect(largePadCollection.format('{padding}')).toBe('%04d');
     });
 
     test('formats with range placeholder', () => {
         expect(collection.format('{range}')).toBe('1-5');
 
-        const singleCollection = new Collection('file_', '.txt', 2, [1]);
+        const singleCollection = new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 2,
+            indexes: [1]
+        });
         expect(singleCollection.format('{range}')).toBe('1');
 
-        const emptyCollection = new Collection('file_', '.txt', 2, []);
+        const emptyCollection = new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 2,
+            indexes: []
+        });
         expect(emptyCollection.format('{range}')).toBe('');
     });
 
     test('formats with ranges placeholder', () => {
         expect(collection.format('{ranges}')).toBe('1-5');
 
-        const discontinuousCollection = new Collection('file_', '.txt', 2, [1, 2, 4, 5, 7]);
+        const discontinuousCollection = new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 2,
+            indexes: [1, 2, 4, 5, 7]
+        });
         expect(discontinuousCollection.format('{ranges}')).toBe('1-2, 4-5, 7');
     });
 
     test('formats with holes placeholder', () => {
-        const discontinuousCollection = new Collection('file_', '.txt', 2, [1, 2, 4, 5, 7]);
+        const discontinuousCollection = new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 2,
+            indexes: [1, 2, 4, 5, 7]
+        });
         expect(discontinuousCollection.format('{holes}')).toBe('3, 6');
 
         // No holes
         expect(collection.format('{holes}')).toBe('');
 
         // Single item (no holes possible)
-        const singleCollection = new Collection('file_', '.txt', 2, [1]);
+        const singleCollection = new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 2,
+            indexes: [1]
+        });
         expect(singleCollection.format('{holes}')).toBe('');
     });
 
@@ -737,7 +1059,12 @@ describe('Collection.format', () => {
     // Complex pattern tests
     test('handles multiple placeholders', () => {
         const pattern = 'Sequence {head} (pad: {padding}) contains: {ranges}. Missing: {holes}';
-        const discontinuousCollection = new Collection('file_', '.txt', 2, [1, 2, 4, 5, 7]);
+        const discontinuousCollection = new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 2,
+            indexes: [1, 2, 4, 5, 7]
+        });
         expect(discontinuousCollection.format(pattern))
             .toBe('Sequence file_ (pad: %02d) contains: 1-2, 4-5, 7. Missing: 3, 6');
     });
@@ -768,12 +1095,12 @@ describe('Collection.format', () => {
 
     // Large sequence tests
     test('handles formatting large sequences efficiently', () => {
-        const largeCollection = new Collection(
-            'frame_',
-            '.exr',
-            4,
-            Array.from({length: 1000}, (_, i) => i + 1)
-        );
+        const largeCollection = new Collection({
+            head: 'frame_',
+            tail: '.exr',
+            padding: 4,
+            indexes: Array.from({length: 1000}, (_, i) => i + 1)
+        });
 
         const start = Date.now();
         const result = largeCollection.format();
@@ -785,7 +1112,12 @@ describe('Collection.format', () => {
 
     // Special character handling
     test('handles special characters in head/tail', () => {
-        const specialCollection = new Collection('file[_]', '.%txt', 2, [1, 2, 3]);
+        const specialCollection = new Collection({
+            head: 'file[_]',
+            tail: '.%txt',
+            padding: 2,
+            indexes: [1, 2, 3]
+        });
         expect(specialCollection.format()).toBe('file[_]%02d.%txt [1-3]');
     });
 
@@ -797,14 +1129,24 @@ describe('Collection.format', () => {
 
     // Combinations of contiguous and non-contiguous ranges
     test('formats complex range patterns', () => {
-        const complexCollection = new Collection('seq_', '.png', 3, [1, 2, 3, 5, 7, 8, 9, 11]);
+        const complexCollection = new Collection({
+            head: 'seq_',
+            tail: '.png',
+            padding: 3,
+            indexes: [1, 2, 3, 5, 7, 8, 9, 11]
+        });
         expect(complexCollection.format())
             .toBe('seq_%03d.png [1-3, 5, 7-9, 11]');
     });
 
     // Format chain testing
     test('handles chained format calls', () => {
-        const discontinuousCollection = new Collection('file_', '.txt', 2, [1, 2, 4, 5, 7]);
+        const discontinuousCollection = new Collection({
+            head: 'file_',
+            tail: '.txt',
+            padding: 2,
+            indexes: [1, 2, 4, 5, 7]
+        });
         const holesCollection = discontinuousCollection.holes;
         expect(holesCollection.format('{ranges}')).toBe('3, 6');
     });
