@@ -132,6 +132,28 @@ class Collection {
         this.tail = tail;
         this.padding = padding;
         this._indexes = new Set(indexes ?? []);
+        this.#validate();
+    }
+
+    /**
+     * Validates Collection properties meet requirements.
+     * @private
+     * @throws {Error} If padding or indexes are invalid
+     */
+    #validate() {
+        if (!Number.isInteger(this.padding) || this.padding < 0) {
+            throw new Error("Padding must be a non-negative integer");
+        }
+
+        if (!(this._indexes instanceof Set)) {
+            throw new Error("Indexes must be a Set");
+        }
+
+        for (const index of this._indexes) {
+            if (!Number.isInteger(index) || index < 0) {
+                throw new Error("All indexes must be non-negative integers");
+            }
+        }
     }
 
     /**

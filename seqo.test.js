@@ -84,6 +84,33 @@ describe("Collection", () => {
 });
 
 
+describe('Collection.validate', () => {
+    test('valid collection passes validation', () => {
+        expect(() => new Collection('file_', '.txt', 2, [1, 2, 3])).not.toThrow();
+    });
+
+    test('rejects negative padding', () => {
+        expect(() => new Collection('file_', '.txt', -1, [1,2,3]))
+            .toThrow('Padding must be a non-negative integer');
+    });
+
+    test('rejects decimal padding', () => {
+        expect(() => new Collection('file_', '.txt', 1.5, [1,2,3]))
+            .toThrow('Padding must be a non-negative integer');
+    });
+
+    test('rejects negative indexes', () => {
+        expect(() => new Collection('file_', '.txt', 2, [1, -2, 3]))
+            .toThrow('All indexes must be non-negative integers');
+    });
+
+    test('rejects decimal indexes', () => {
+        expect(() => new Collection('file_', '.txt', 2, [1, 2.5, 3]))
+            .toThrow('All indexes must be non-negative integers');
+    });
+});
+
+
 describe('Collection.match', () => {
     test('matches a simple pattern', () => {
         const collection = new Collection('file_', '.txt', 2, [1, 2, 3], ['file_01.txt', 'file_02.txt', 'file_03.txt']);
