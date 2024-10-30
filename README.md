@@ -19,7 +19,7 @@ npm install seqo
 ## Usage
 
 ### Basic Sequence Detection
-The `assemble` accepts a list of strings and returns a tuple containing an array of collections and an array of unmatched items (remainder):
+The `assemble` function accepts a list of strings and returns a tuple containing an array of collections and an array of unmatched items (remainder):
 
 ```javascript
 import { assemble } from 'seqo';
