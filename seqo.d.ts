@@ -1,4 +1,14 @@
 /**
+ * Copyright (c) 2024 Mark Livolsi
+ * Derived from Clique (https://github.com/networkx/clique)
+ * Copyright (c) 2013 Martin Pengelly-Phillips
+ *
+ * Licensed under the Apache License, Version 2.0
+ * See LICENSE file in the project root for full license text.
+ */
+
+
+/**
  * Interface defining the constructor options for Collection class.
  */
 interface CollectionOptions {
