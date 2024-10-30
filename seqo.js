@@ -131,7 +131,7 @@ class Collection {
         this.head = head;
         this.tail = tail;
         this.padding = padding;
-        this._indexes = new Set(indexes);
+        this._indexes = new Set(indexes ?? []);
     }
 
     /**
@@ -609,4 +609,154 @@ function assemble(
 }
 
 
-export { range, assemble, Collection, PATTERNS };
+/**
+ * Parses a string representing a collection with numeric patterns and returns a Collection object.
+ *
+ * @param {string} string - The input string to parse, expected to contain head, padding, tail and ranges.
+ *                         Example: "file_%02d.txt [1-5]" or "img_%03d.exr [1-10] [-4-6]"
+ * @param {Object} options - Optional configuration object.
+ * @param {string} [options.pattern='{head}{padding}{tail} [{ranges}]'] - The pattern template to match against.
+ *                         Can contain the following placeholders:
+ *                         - {head}: The prefix before the padding pattern
+ *                         - {padding}: The padding pattern (e.g., %02d)
+ *                         - {tail}: The suffix after the padding pattern
+ *                         - {ranges}: The numeric ranges to include
+ *                         - {holes}: The numeric ranges to exclude
+ *
+ * @returns {Collection} A Collection instance containing the parsed components and indexes.
+ *
+ * @throws {Error} If the string does not match the expected pattern.
+ * @throws {Error} If ranges or holes are in an invalid format.
+ * @throws {Error} If invalid numbers are found in ranges or holes.
+ *
+ * @example
+ * // Basic usage with default pattern
+ * const coll = parseCollection('file_%02d.txt [1-5]');
+ * // coll.head === 'file_'
+ * // coll.tail === '.txt'
+ * // coll.padding === 2
+ * // coll.indexes === [1, 2, 3, 4, 5]
+ *
+ * @example
+ * // Using holes to exclude numbers
+ * const coll = parseCollection('img_%03d.jpg [1-10] [-4-6]');
+ * // Results in collection with indexes [1, 2, 3, 7, 8, 9, 10]
+ *
+ * @example
+ * // Using custom pattern
+ * const coll = parseCollection(
+ *     'Sequence (prefix) padding:%03d contains 1-5',
+ *     { pattern: 'Sequence ({head}) padding:{padding} contains {ranges}' }
+ * );
+ */
+function parseCollection(string, {pattern = '{head}{padding}{tail} [{ranges}]'} = {}) {
+
+    const expressions = {
+        head: '(?<head>.*)',
+        tail: '(?<tail>.*)',
+        padding: '%(?<padding>\\d*)d',
+        // range: '(?<range>\\d+(?:-\\d+)?)?',
+        range: '(?<range>\\d+-\\d+)?',
+        ranges: '(?<ranges>[\\d ,\\-]+)?',
+        holes: '(?<holes>[\\d ,\\-]+)'
+    }
+
+    // Render pattern template with regex patterns
+    let renderedPattern = _escapeRegExp(pattern);
+    for (const [key, value] of Object.entries(expressions)) {
+        renderedPattern = renderedPattern.replace(`\\{${key}\\}`, value);
+    }
+
+    // Create the regex with the rendered pattern
+    const regex = new RegExp(renderedPattern);
+    const match = string.match(regex);
+    if (!match) {
+        throw new Error(`String "${string}" does not match pattern "${pattern}"`);
+    }
+    const groups = match.groups ?? {};
+
+    const head = groups.head ?? '';
+    const tail = groups.tail ?? '';
+    const padding = groups.padding ? parseInt(groups.padding, 10) : 0;
+
+    const collection = new Collection(head, tail, padding, []);
+
+    try {
+
+        // Handle single range
+        if (groups.range) {
+            const indexes = _parsePart(groups.range);
+            collection.add([...indexes]);
+        }
+
+        // Handle multiple comma-separated ranges
+        if (groups.ranges) {
+            const parts = _splitRanges(groups.ranges);
+            for (const part of parts) {
+                const indexes = _parsePart(part);
+                collection.add([...indexes]);
+            }
+        }
+
+        // Remove any holes
+        if (groups.holes) {
+            const parts = _splitRanges(groups.holes);
+            for (const part of parts) {
+                const indexes = _parsePart(part);
+                collection.remove([...indexes]);
+            }
+        }
+
+    } catch (error) {
+        throw new Error(`Error parsing collection from string "${string}": ${error.message}`);
+    }
+
+    return collection;
+
+}
+
+
+function _escapeRegExp(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
+}
+
+
+function _splitRanges(rangesStr) {
+    return rangesStr
+        .split(',')
+        .map(part => part.trim())
+        .filter(part => part.length > 0);  // Skip empty parts from "1,,2" or "1, ,2"
+}
+
+
+function _parseRange(rangeStr) {
+    const parts = rangeStr.trim().split('-');
+    if (parts.length !== 2 || parts.some(part => part === '')) {
+        throw new Error(`Invalid range format: ${rangeStr}`);
+    }
+    const [start, end] = parts.map(p => {
+        const num = parseInt(p, 10);
+        if (isNaN(num)) {
+            throw new Error(`Invalid number in range: ${p}`);
+        }
+        return num;
+    });
+    return [start, end];
+}
+
+
+function _parsePart(part) {
+    part = part.trim();
+    if (part.includes('-')) {
+        const [start, end] = _parseRange(part);
+        return range(start, end + 1);
+    }
+    const num = parseInt(part, 10);
+    if (isNaN(num)) {
+        throw new Error(`Invalid number: ${part}`);
+    }
+    return [num];
+}
+
+
+export { range, assemble, parseCollection, Collection, PATTERNS };
