@@ -655,7 +655,6 @@ function parseCollection(string, {pattern = '{head}{padding}{tail} [{ranges}]'} 
         head: '(?<head>.*)',
         tail: '(?<tail>.*)',
         padding: '%(?<padding>\\d*)d',
-        // range: '(?<range>\\d+(?:-\\d+)?)?',
         range: '(?<range>\\d+-\\d+)?',
         ranges: '(?<ranges>[\\d ,\\-]+)?',
         holes: '(?<holes>[\\d ,\\-]+)'
