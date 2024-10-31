@@ -8,7 +8,7 @@
  */
 
 
-import { range, assemble, parseCollection, Collection, PATTERNS } from "./seqo.js";
+import { range, assemble, Collection, PATTERNS } from "./seqo.js";
 
 
 describe('range', () => {
@@ -1347,10 +1347,10 @@ describe('assemble', () => {
 });
 
 
-describe('parseCollection', () => {
+describe('Collection.parse', () => {
     // Basic functionality
     test('parses basic pattern with single range', () => {
-        const result = parseCollection('prefix%3dsuffix [1-5]');
+        const result = Collection.parse('prefix%3dsuffix [1-5]');
         expect(result).toBeInstanceOf(Collection);
         expect(result.head).toBe('prefix');
         expect(result.tail).toBe('suffix');
@@ -1359,55 +1359,55 @@ describe('parseCollection', () => {
     });
 
     test('parses pattern with multiple comma-separated ranges', () => {
-        const result = parseCollection('file_%02d.txt [1-3, 5-7, 9]');
+        const result = Collection.parse('file_%02d.txt [1-3, 5-7, 9]');
         expect(result.padding).toBe(2);
         expect(result.indexes).toEqual([1, 2, 3, 5, 6, 7, 9]);
     });
 
     test('parses pattern with holes', () => {
-        const result = parseCollection('img_%03d.jpg [1-10] [4-6]', {pattern: '{head}{padding}{tail} [{ranges}] [{holes}]'});
+        const result = Collection.parse('img_%03d.jpg [1-10] [4-6]', {pattern: '{head}{padding}{tail} [{ranges}] [{holes}]'});
         expect(result.padding).toBe(3);
         expect(result.indexes).toEqual([1, 2, 3, 7, 8, 9, 10]);
     });
 
     // Padding tests
     test('handles zero padding', () => {
-        const result = parseCollection('v%d [1-3]');
+        const result = Collection.parse('v%d [1-3]');
         expect(result.padding).toBe(0);
         expect(result.indexes).toEqual([1, 2, 3]);
     });
 
     test('handles explicit padding', () => {
-        const result = parseCollection('frame_%04d.exr [1-3]');
+        const result = Collection.parse('frame_%04d.exr [1-3]');
         expect(result.padding).toBe(4);
         expect(result.indexes).toEqual([1, 2, 3]);
     });
 
     // Edge cases
     test('handles single number in range', () => {
-        const result = parseCollection('file_%02d.txt [5-5]', {pattern: '{head}{padding}{tail} [{range}]'});
+        const result = Collection.parse('file_%02d.txt [5-5]', {pattern: '{head}{padding}{tail} [{range}]'});
         expect(result.indexes).toEqual([5]);
     });
 
     test('handles empty ranges', () => {
-        const result = parseCollection('file_%02d.txt []');
+        const result = Collection.parse('file_%02d.txt []');
         expect(result.indexes).toEqual([]);
     });
 
     test('handles multiple spaces in ranges', () => {
-        const result = parseCollection('file_%02d.txt [1-3,   5-7,    9]');
+        const result = Collection.parse('file_%02d.txt [1-3,   5-7,    9]');
         expect(result.indexes).toEqual([1, 2, 3, 5, 6, 7, 9]);
     });
 
     test('handles overlapping ranges and holes', () => {
-        const result = parseCollection('file_%02d.txt [1-10] [4-6]', {pattern: '{head}{padding}{tail} [{ranges}] [{holes}]'});
+        const result = Collection.parse('file_%02d.txt [1-10] [4-6]', {pattern: '{head}{padding}{tail} [{ranges}] [{holes}]'});
         expect(result.indexes).toEqual([1, 2, 3, 7, 8, 9, 10]);
     });
 
     // Custom pattern tests
     test('handles custom pattern format', () => {
         const pattern = 'Sequence ({head}) padding:{padding} contains {ranges}';
-        const result = parseCollection('Sequence (prefix) padding:%03d contains 1-5', { pattern });
+        const result = Collection.parse('Sequence (prefix) padding:%03d contains 1-5', { pattern });
         expect(result.head).toBe('prefix');
         expect(result.padding).toBe(3);
         expect(result.indexes).toEqual([1, 2, 3, 4, 5]);
@@ -1416,36 +1416,36 @@ describe('parseCollection', () => {
     // Error handling
     test('throws error for invalid pattern string', () => {
         expect(() => {
-            parseCollection('invalid_pattern');
+            Collection.parse('invalid_pattern');
         }).toThrow('String "invalid_pattern" does not match pattern');
     });
 
     test('throws error for invalid range format', () => {
         expect(() => {
-            parseCollection('file_%02d.txt [1-]');
+            Collection.parse('file_%02d.txt [1-]');
         }).toThrow('Invalid range format');
     });
 
     test('throws error for invalid number in range', () => {
         expect(() => {
-            parseCollection('file_%02d.txt [1-a]');
+            Collection.parse('file_%02d.txt [1-a]');
         }).toThrow('does not match pattern');
     });
 
     // Complex scenarios
     test('handles complex combination of ranges and holes', () => {
-        const result = parseCollection('file_%03d.txt [1-10, 15-20] [5-7, 18]', {pattern: '{head}{padding}{tail} [{ranges}] [{holes}]'});
+        const result = Collection.parse('file_%03d.txt [1-10, 15-20] [5-7, 18]', {pattern: '{head}{padding}{tail} [{ranges}] [{holes}]'});
         expect(result.indexes).toEqual([1, 2, 3, 4, 8, 9, 10, 15, 16, 17, 19, 20]);
     });
 
     test('handles multiple hole ranges', () => {
-        const result = parseCollection('file_%02d.txt [1-20] [5-8, 12-15]', {pattern: '{head}{padding}{tail} [{ranges}] [{holes}]'});
+        const result = Collection.parse('file_%02d.txt [1-20] [5-8, 12-15]', {pattern: '{head}{padding}{tail} [{ranges}] [{holes}]'});
         expect(result.indexes).toEqual([1, 2, 3, 4, 9, 10, 11, 16, 17, 18, 19, 20]);
     });
 
     // Whitespace handling
     test('handles various whitespace in pattern', () => {
-        const result = parseCollection('  file_%02d.txt   [1-5]  ');
+        const result = Collection.parse('  file_%02d.txt   [1-5]  ');
         expect(result.head).toBe('  file_');
         expect(result.tail).toBe('.txt  ');
         expect(result.indexes).toEqual([1, 2, 3, 4, 5]);
@@ -1453,7 +1453,7 @@ describe('parseCollection', () => {
 
     // Special character handling
     test('handles special characters in head and tail', () => {
-        const result = parseCollection('file-_@#$%02d!!!.txt [1-3]');
+        const result = Collection.parse('file-_@#$%02d!!!.txt [1-3]');
         expect(result.head).toBe('file-_@#$');
         expect(result.tail).toBe('!!!.txt');
         expect(result.indexes).toEqual([1, 2, 3]);
@@ -1461,13 +1461,13 @@ describe('parseCollection', () => {
 
     // Range order tests
     test('handles ranges in any order', () => {
-        const result = parseCollection('file_%02d.txt [5-7, 1-3]');
+        const result = Collection.parse('file_%02d.txt [5-7, 1-3]');
         expect(result.indexes).toEqual([1, 2, 3, 5, 6, 7]);
     });
 
     // Empty sections
     test('handles empty head and tail', () => {
-        const result = parseCollection('%03d [1-3]');
+        const result = Collection.parse('%03d [1-3]');
         expect(result.head).toBe('');
         expect(result.tail).toBe('');
         expect(result.indexes).toEqual([1, 2, 3]);
