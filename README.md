@@ -1,6 +1,6 @@
 # seqo
 
-A JavaScript port of the python library [clique](https://pypi.org/project/clique/) for working with numeric sequences in filenames and text patterns. Useful for handling frame sequences, version numbers, and other numbered file patterns.
+A JavaScript port of the python library [clique](https://gitlab.com/4degrees/clique) for working with numeric sequences in filenames and text patterns. Useful for handling frame sequences, version numbers, and other numbered file patterns.
 
 ## Features
 
@@ -244,7 +244,7 @@ PATTERNS.digits    // '\\d+'
 
 Copyright (c) 2024 Mark Livolsi
 
-Derived from [clique](https://pypi.org/project/clique/) Copyright (c) 2013 Martin Pengelly-Phillips
+Derived from [clique](https://gitlab.com/4degrees/clique) Copyright (c) 2013 Martin Pengelly-Phillips
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
