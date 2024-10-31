@@ -1163,7 +1163,7 @@ describe('Collection.format', () => {
 });
 
 
-describe('assemble', () => {
+describe('Collection.assemble', () => {
     // Basic functionality
     test('assembles basic sequence', () => {
         const items = ['File.0001.exr', 'File.0002.exr', 'other.exr'];
