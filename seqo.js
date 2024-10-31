@@ -1,6 +1,6 @@
 /**
  * Copyright (c) 2024 Mark Livolsi
- * Derived from Clique (https://github.com/networkx/clique)
+ * Derived from Clique (https://pypi.org/project/clique/)
  * Copyright (c) 2013 Martin Pengelly-Phillips
  *
  * Licensed under the Apache License, Version 2.0
