@@ -8,7 +8,7 @@
  */
 
 
-import { range, Collection, PATTERNS } from "./seqo.js";
+import { range, Collection } from "./seqo.js";
 
 
 describe('range', () => {
@@ -1199,7 +1199,7 @@ describe('Collection.assemble', () => {
     // Pattern handling
     test('uses specific patterns when provided', () => {
         const items = ['shot_001_v002.ext', 'shot_001_v003.ext'];
-        const [collections, remainder] = Collection.assemble(items, { patterns: [PATTERNS.versions] });
+        const [collections, remainder] = Collection.assemble(items, { patterns: [Collection.patterns.versions] });
 
         expect(collections).toHaveLength(1);
         expect(collections[0].head).toBe('shot_001_v');
@@ -1316,7 +1316,7 @@ describe('Collection.assemble', () => {
     test('handles multiple pattern matches correctly', () => {
         const items = ['shot_001_v002.ext', 'shot_001_v003.ext'];
         const [collections, _] = Collection.assemble(items, {
-            patterns: [PATTERNS.frames, PATTERNS.versions]
+            patterns: [Collection.patterns.frames, Collection.patterns.versions]
         });
 
         const versionCollection = collections.find(c => c.head.endsWith('v'));

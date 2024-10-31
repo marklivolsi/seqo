@@ -9,49 +9,6 @@
 
 
 /**
- * Base pattern for matching digit sequences.
- * @const {string}
- * @example
- * // Matches sequence of digits with optional leading zeros
- */
-const DIGITS_PATTERN = '(?<index>(?<padding>0*)\\d+)'
-
-
-/** @const {Object} Pattern definitions for common sequence formats */
-const PATTERNS = Object.freeze({
-
-    /**
-     * Pattern for matching plain digit sequences.
-     * @const {string}
-     * @example
-     * // Matches: "001", "1", "0123"
-     * // Does not match: "a1", "1.2", "v1"
-     */
-    digits: DIGITS_PATTERN,
-
-    /**
-     * Pattern for matching frame number sequences in filenames.
-     * Expects digits between dots.
-     * @const {string}
-     * @example
-     * // Matches: ".001.", ".1.", ".0123."
-     * // Does not match: "001", ".1", "1.", ".a1."
-     */
-    frames: `\\.${DIGITS_PATTERN}\\.`,
-
-    /**
-     * Pattern for matching version numbers.
-     * Expects 'v' prefix followed by digits.
-     * @const {string}
-     * @example
-     * // Matches: "v001", "v1", "v0123"
-     * // Does not match: "1", "ver1", "v1.0"
-     */
-    versions: `v${DIGITS_PATTERN}`,
-});
-
-
-/**
  * Generates a sequence of integers from start (inclusive) to stop (exclusive),
  * incrementing by step. If step is not provided, it defaults to 1 if start <= stop,
  * and -1 otherwise. If only one argument is provided, it is interpreted as stop,
@@ -128,6 +85,357 @@ function range(start = 0, stop, step) {
  */
 class Collection {
 
+    static #DIGITS_PATTERN = '(?<index>(?<padding>0*)\\d+)';
+
+    /**
+     * Predefined regex patterns for common sequence formats.
+     * All patterns provide named capture groups:
+     * - index: The full number including any padding
+     * - padding: Any leading zeros
+     * @const {Object}
+     * @property {string} digits - Matches plain digit sequences (e.g., "001", "1", "0123")
+     * @property {string} frames - Matches frame numbers between dots (e.g., ".001.", ".1.", ".0123.")
+     * @property {string} versions - Matches version numbers with 'v' prefix (e.g., "v001", "v1", "v0123")
+     */
+    static patterns = Object.freeze({
+        digits: Collection.#DIGITS_PATTERN,
+        frames: `\\.${Collection.#DIGITS_PATTERN}\\.`,
+        versions: `v${Collection.#DIGITS_PATTERN}`
+    });
+
+    /**
+     * Parses a string representing a collection with numeric patterns and returns a Collection object.
+     *
+     * @param {string} string - The input string to parse, expected to contain head, padding, tail and ranges.
+     *                         Example: "file_%02d.txt [1-5]" or "img_%03d.exr [1-10] [-4-6]"
+     * @param {Object} options - Optional configuration object.
+     * @param {string} [options.pattern='{head}{padding}{tail} [{ranges}]'] - The pattern template to match against.
+     *                         Can contain the following placeholders:
+     *                         - {head}: The prefix before the padding pattern
+     *                         - {padding}: The padding pattern (e.g., %02d)
+     *                         - {tail}: The suffix after the padding pattern
+     *                         - {ranges}: The numeric ranges to include
+     *                         - {holes}: The numeric ranges to exclude
+     *
+     * @returns {Collection} A Collection instance containing the parsed components and indexes.
+     *
+     * @throws {Error} If the string does not match the expected pattern.
+     * @throws {Error} If ranges or holes are in an invalid format.
+     * @throws {Error} If invalid numbers are found in ranges or holes.
+     *
+     * @example
+     * // Basic usage with default pattern
+     * const coll = parseCollection('file_%02d.txt [1-5]');
+     * // coll.head === 'file_'
+     * // coll.tail === '.txt'
+     * // coll.padding === 2
+     * // coll.indexes === [1, 2, 3, 4, 5]
+     *
+     * @example
+     * // Using holes to exclude numbers
+     * const coll = parseCollection('img_%03d.jpg [1-10] [-4-6]');
+     * // Results in collection with indexes [1, 2, 3, 7, 8, 9, 10]
+     *
+     * @example
+     * // Using custom pattern
+     * const coll = parseCollection(
+     *     'Sequence (prefix) padding:%03d contains 1-5',
+     *     { pattern: 'Sequence ({head}) padding:{padding} contains {ranges}' }
+     * );
+     */
+    static parse(string, {pattern = '{head}{padding}{tail} [{ranges}]'} = {}) {
+        const expressions = {
+            head: '(?<head>.*)',
+            tail: '(?<tail>.*)',
+            padding: '%(?<padding>\\d*)d',
+            range: '(?<range>\\d+-\\d+)?',
+            ranges: '(?<ranges>[\\d ,\\-]+)?',
+            holes: '(?<holes>[\\d ,\\-]+)'
+        }
+
+        // Render pattern template with regex patterns
+        let renderedPattern = Collection.#escapeRegExp(pattern);
+        for (const [key, value] of Object.entries(expressions)) {
+            renderedPattern = renderedPattern.replace(`\\{${key}\\}`, value);
+        }
+
+        // Create the regex with the rendered pattern
+        const regex = new RegExp(renderedPattern);
+        const match = string.match(regex);
+        if (!match) {
+            throw new Error(`String "${string}" does not match pattern "${pattern}"`);
+        }
+        const groups = match.groups ?? {};
+
+        const head = groups.head ?? '';
+        const tail = groups.tail ?? '';
+        const padding = groups.padding ? parseInt(groups.padding, 10) : 0;
+
+        const collection = new Collection({
+            head: head,
+            tail: tail,
+            padding: padding,
+            indexes: []
+        });
+
+        try {
+
+            // Handle single range
+            if (groups.range) {
+                const indexes = Collection.#parsePart(groups.range);
+                collection.add([...indexes]);
+            }
+
+            // Handle multiple comma-separated ranges
+            if (groups.ranges) {
+                const parts = Collection.#splitRanges(groups.ranges);
+                for (const part of parts) {
+                    const indexes = Collection.#parsePart(part);
+                    collection.add([...indexes]);
+                }
+            }
+
+            // Remove any holes
+            if (groups.holes) {
+                const parts = Collection.#splitRanges(groups.holes);
+                for (const part of parts) {
+                    const indexes = Collection.#parsePart(part);
+                    collection.remove([...indexes]);
+                }
+            }
+
+        } catch (error) {
+            throw new Error(`Error parsing collection from string "${string}": ${error.message}`);
+        }
+
+        return collection;
+    }
+
+    static #escapeRegExp(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    static #splitRanges(rangesStr) {
+        return rangesStr
+            .split(',')
+            .map(part => part.trim())
+            .filter(part => part.length > 0);  // Skip empty parts from "1,,2" or "1, ,2"
+    }
+
+    static #parsePart(part) {
+        part = part.trim();
+        if (part.includes('-')) {
+            const [start, end] = Collection.#parseRange(part);
+            return range(start, end + 1);
+        }
+        const num = parseInt(part, 10);
+        if (isNaN(num)) {
+            throw new Error(`Invalid number: ${part}`);
+        }
+        return [num];
+    }
+
+    static #parseRange(rangeStr) {
+        const parts = rangeStr.trim().split('-');
+        if (parts.length !== 2 || parts.some(part => part === '')) {
+            throw new Error(`Invalid range format: ${rangeStr}`);
+        }
+        const [start, end] = parts.map(p => {
+            const num = parseInt(p, 10);
+            if (isNaN(num)) {
+                throw new Error(`Invalid number in range: ${p}`);
+            }
+            return num;
+        });
+        return [start, end];
+    }
+
+
+    /**
+     * Assembles items into discrete collections based on their numeric patterns.
+     * @param {Iterable<string>} strings - Items to assemble into collections
+     * @param {Object} [options] - Optional configuration
+     * @param {(RegExp|string)[]} [options.patterns=null] - Optional patterns to limit collection possibilities
+     * @param {number} [options.minItems=2] - Minimum number of items a collection must have
+     * @param {boolean} [options.caseSensitive=true] - Whether to treat items as case-sensitive
+     * @param {boolean} [options.assumePaddedWhenAmbiguous=false] - Whether to assume padding in ambiguous cases
+     * @returns {[Collection[], string[]]} - Tuple of [collections, remainder]
+     */
+    static assemble(strings, {
+        patterns = null,
+        minItems = 2,
+        caseSensitive = true,
+        assumePaddedWhenAmbiguous = false
+    } = {}) {
+
+        // Early return for empty pattern list
+        if (patterns && patterns.length === 0) {
+            return [[], Array.from(strings)];
+        }
+
+        const { collectionMap, remainder } = Collection.#processStrings(
+            strings,
+            Collection.#compilePatterns(patterns, caseSensitive),
+            caseSensitive,
+        );
+
+        const collections = Collection.#createCollections(collectionMap);
+        const mergedCollections = Collection.#handlePaddingMerges(collections);
+        const filteredCollections = Collection.#filterByMinItems(mergedCollections, minItems, remainder);
+
+        if (assumePaddedWhenAmbiguous) {
+            Collection.#handlePaddingAmbiguity(filteredCollections);
+        }
+
+        return [filteredCollections, Array.from(remainder).sort((a, b) => a - b)];
+    }
+
+    static #compilePatterns(patterns, caseSensitive) {
+        const flags = caseSensitive ? 'g' : 'ig';
+        if (patterns !== null) {
+            return patterns.map(p => {
+                if (typeof p === 'string') {
+                    return new RegExp(p, flags);
+                }
+                if (p instanceof RegExp) {
+                    return new RegExp(p.source, flags);
+                }
+                throw new Error(`Invalid pattern type: ${typeof p}`);
+            });
+        }
+        return [new RegExp(Collection.#DIGITS_PATTERN, flags)]
+    }
+
+    static #processStrings(strings, compiledPatterns, caseSensitive) {
+        const collectionMap = new Map();
+        const remainder = new Set();
+
+        for (const item of strings) {
+            let matched = false;
+
+            for (const pattern of compiledPatterns) {
+                pattern.lastIndex = 0;  // Reset regex state
+                const matches = item.matchAll(pattern);
+
+                for (const match of matches) {
+                    Collection.#processMatch(match, item, collectionMap, caseSensitive);
+                    matched = true;
+                }
+            }
+
+            if (!matched) {
+                remainder.add(item);
+            }
+        }
+
+        return { collectionMap, remainder };
+    }
+
+    static #processMatch(match, item, collectionMap, caseSensitive) {
+        const { index: matchIndex, groups } = match;
+        const { index, padding } = groups;
+
+        const fullMatch = match[0];
+        const numberStart = fullMatch.indexOf(index);
+
+        const head = item.slice(0, matchIndex + numberStart);
+        const tail = item.slice(matchIndex + numberStart + index.length);
+        const paddingLength = padding ? index.length : 0;
+
+        const normalizedHead = caseSensitive ? head : head.toLowerCase();
+        const normalizedTail = caseSensitive ? tail : tail.toLowerCase();
+
+        const key = `${normalizedHead}|${normalizedTail}|${paddingLength}`;
+
+        if (!collectionMap.has(key)) {
+            collectionMap.set(key, {
+                head,
+                tail,
+                padding: paddingLength,
+                indexes: new Set()
+            });
+        }
+
+        collectionMap.get(key).indexes.add(parseInt(index, 10));
+    }
+
+    static #createCollections(collectionMap) {
+        const collections = [];
+        const unpadded = [];
+
+        for (const { head, tail, padding, indexes } of collectionMap.values()) {
+            const collection = new Collection({
+                head: head,
+                tail: tail,
+                padding: padding,
+                indexes: indexes
+            });
+            collections.push(collection);
+            if (padding === 0) {
+                unpadded.push(collection);
+            }
+        }
+
+        return { collections, unpadded };
+    }
+
+    static #handlePaddingMerges({ collections, unpadded }) {
+        const fullyMerged = new Set();
+
+        for (const collection of collections) {
+            if (collection.padding === 0) continue;
+
+            for (const candidate of unpadded) {
+                if (candidate.head === collection.head &&
+                    candidate.tail === collection.tail) {
+
+                    const mergeResult = Collection.#attemptMerge(collection, candidate);
+                    if (mergeResult.complete) {
+                        fullyMerged.add(candidate);
+                    }
+                }
+            }
+        }
+
+        return collections.filter(c => !fullyMerged.has(c));
+    }
+
+    static #attemptMerge(target, source) {
+        let mergedCount = 0;
+
+        for (const index of source.indexes) {
+            if (String(Math.abs(index)).length === target.padding) {
+                target.add(index);
+                mergedCount++;
+            }
+        }
+
+        return { complete: mergedCount === source.indexes.length };
+    }
+
+    static #filterByMinItems(collections, minItems, remainder) {
+        return collections.filter(collection => {
+            if (collection._indexes.size >= minItems) {
+                return true;
+            }
+            collection.members.forEach(i => remainder.add(i));
+            return false;
+        });
+    }
+
+    static #handlePaddingAmbiguity(collections) {
+        for (const collection of collections) {
+            const indexes = collection.indexes;
+            if (!collection.padding && indexes.length > 0) {
+                const firstWidth = String(indexes[0]).length;
+                const lastWidth = String(indexes[indexes.length - 1]).length;
+                if (firstWidth === lastWidth) {
+                    collection.padding = firstWidth;
+                }
+            }
+        }
+    }
+
     /**
      * Creates a new Collection instance.
      *
@@ -138,11 +446,11 @@ class Collection {
      * @param {number[]} [options.indexes=[]] - Array of non-negative integers representing the collection's indexes
      */
     constructor({
-        head = "",
-        tail = "",
-        padding = 0,
-        indexes = []
-    } = {}) {
+                    head = "",
+                    tail = "",
+                    padding = 0,
+                    indexes = []
+                } = {}) {
         this.head = head;
         this.tail = tail;
         this.padding = padding;
@@ -512,340 +820,7 @@ class Collection {
         return new RegExp(`^${this.head}(?<index>(?<padding>0*)\\d+?)${this.tail}$`);
     }
 
-    /**
-     * Parses a string representing a collection with numeric patterns and returns a Collection object.
-     *
-     * @param {string} string - The input string to parse, expected to contain head, padding, tail and ranges.
-     *                         Example: "file_%02d.txt [1-5]" or "img_%03d.exr [1-10] [-4-6]"
-     * @param {Object} options - Optional configuration object.
-     * @param {string} [options.pattern='{head}{padding}{tail} [{ranges}]'] - The pattern template to match against.
-     *                         Can contain the following placeholders:
-     *                         - {head}: The prefix before the padding pattern
-     *                         - {padding}: The padding pattern (e.g., %02d)
-     *                         - {tail}: The suffix after the padding pattern
-     *                         - {ranges}: The numeric ranges to include
-     *                         - {holes}: The numeric ranges to exclude
-     *
-     * @returns {Collection} A Collection instance containing the parsed components and indexes.
-     *
-     * @throws {Error} If the string does not match the expected pattern.
-     * @throws {Error} If ranges or holes are in an invalid format.
-     * @throws {Error} If invalid numbers are found in ranges or holes.
-     *
-     * @example
-     * // Basic usage with default pattern
-     * const coll = parseCollection('file_%02d.txt [1-5]');
-     * // coll.head === 'file_'
-     * // coll.tail === '.txt'
-     * // coll.padding === 2
-     * // coll.indexes === [1, 2, 3, 4, 5]
-     *
-     * @example
-     * // Using holes to exclude numbers
-     * const coll = parseCollection('img_%03d.jpg [1-10] [-4-6]');
-     * // Results in collection with indexes [1, 2, 3, 7, 8, 9, 10]
-     *
-     * @example
-     * // Using custom pattern
-     * const coll = parseCollection(
-     *     'Sequence (prefix) padding:%03d contains 1-5',
-     *     { pattern: 'Sequence ({head}) padding:{padding} contains {ranges}' }
-     * );
-     */
-    static parse(string, {pattern = '{head}{padding}{tail} [{ranges}]'} = {}) {
-        const expressions = {
-            head: '(?<head>.*)',
-            tail: '(?<tail>.*)',
-            padding: '%(?<padding>\\d*)d',
-            range: '(?<range>\\d+-\\d+)?',
-            ranges: '(?<ranges>[\\d ,\\-]+)?',
-            holes: '(?<holes>[\\d ,\\-]+)'
-        }
-
-        // Render pattern template with regex patterns
-        let renderedPattern = Collection.#escapeRegExp(pattern);
-        for (const [key, value] of Object.entries(expressions)) {
-            renderedPattern = renderedPattern.replace(`\\{${key}\\}`, value);
-        }
-
-        // Create the regex with the rendered pattern
-        const regex = new RegExp(renderedPattern);
-        const match = string.match(regex);
-        if (!match) {
-            throw new Error(`String "${string}" does not match pattern "${pattern}"`);
-        }
-        const groups = match.groups ?? {};
-
-        const head = groups.head ?? '';
-        const tail = groups.tail ?? '';
-        const padding = groups.padding ? parseInt(groups.padding, 10) : 0;
-
-        const collection = new Collection({
-            head: head,
-            tail: tail,
-            padding: padding,
-            indexes: []
-        });
-
-        try {
-
-            // Handle single range
-            if (groups.range) {
-                const indexes = Collection.#parsePart(groups.range);
-                collection.add([...indexes]);
-            }
-
-            // Handle multiple comma-separated ranges
-            if (groups.ranges) {
-                const parts = Collection.#splitRanges(groups.ranges);
-                for (const part of parts) {
-                    const indexes = Collection.#parsePart(part);
-                    collection.add([...indexes]);
-                }
-            }
-
-            // Remove any holes
-            if (groups.holes) {
-                const parts = Collection.#splitRanges(groups.holes);
-                for (const part of parts) {
-                    const indexes = Collection.#parsePart(part);
-                    collection.remove([...indexes]);
-                }
-            }
-
-        } catch (error) {
-            throw new Error(`Error parsing collection from string "${string}": ${error.message}`);
-        }
-
-        return collection;
-    }
-
-    static #escapeRegExp(string) {
-        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    }
-
-    static #splitRanges(rangesStr) {
-        return rangesStr
-            .split(',')
-            .map(part => part.trim())
-            .filter(part => part.length > 0);  // Skip empty parts from "1,,2" or "1, ,2"
-    }
-
-    static #parsePart(part) {
-        part = part.trim();
-        if (part.includes('-')) {
-            const [start, end] = Collection.#parseRange(part);
-            return range(start, end + 1);
-        }
-        const num = parseInt(part, 10);
-        if (isNaN(num)) {
-            throw new Error(`Invalid number: ${part}`);
-        }
-        return [num];
-    }
-
-    static #parseRange(rangeStr) {
-        const parts = rangeStr.trim().split('-');
-        if (parts.length !== 2 || parts.some(part => part === '')) {
-            throw new Error(`Invalid range format: ${rangeStr}`);
-        }
-        const [start, end] = parts.map(p => {
-            const num = parseInt(p, 10);
-            if (isNaN(num)) {
-                throw new Error(`Invalid number in range: ${p}`);
-            }
-            return num;
-        });
-        return [start, end];
-    }
-
-
-    /**
-     * Assembles items into discrete collections based on their numeric patterns.
-     * @param {Iterable<string>} strings - Items to assemble into collections
-     * @param {Object} [options] - Optional configuration
-     * @param {(RegExp|string)[]} [options.patterns=null] - Optional patterns to limit collection possibilities
-     * @param {number} [options.minItems=2] - Minimum number of items a collection must have
-     * @param {boolean} [options.caseSensitive=true] - Whether to treat items as case-sensitive
-     * @param {boolean} [options.assumePaddedWhenAmbiguous=false] - Whether to assume padding in ambiguous cases
-     * @returns {[Collection[], string[]]} - Tuple of [collections, remainder]
-     */
-    static assemble(strings, {
-        patterns = null,
-        minItems = 2,
-        caseSensitive = true,
-        assumePaddedWhenAmbiguous = false
-    } = {}) {
-
-        // Early return for empty pattern list
-        if (patterns && patterns.length === 0) {
-            return [[], Array.from(strings)];
-        }
-
-        const { collectionMap, remainder } = Collection.#processStrings(
-            strings,
-            Collection.#compilePatterns(patterns, caseSensitive),
-            caseSensitive,
-        );
-
-        const collections = Collection.#createCollections(collectionMap);
-        const mergedCollections = Collection.#handlePaddingMerges(collections);
-        const filteredCollections = Collection.#filterByMinItems(mergedCollections, minItems, remainder);
-
-        if (assumePaddedWhenAmbiguous) {
-            Collection.#handlePaddingAmbiguity(filteredCollections);
-        }
-
-        return [filteredCollections, Array.from(remainder).sort((a, b) => a - b)];
-    }
-
-    static #compilePatterns(patterns, caseSensitive) {
-        const flags = caseSensitive ? 'g' : 'ig';
-        if (patterns !== null) {
-            return patterns.map(p => {
-                if (typeof p === 'string') {
-                    return new RegExp(p, flags);
-                }
-                if (p instanceof RegExp) {
-                    return new RegExp(p.source, flags);
-                }
-                throw new Error(`Invalid pattern type: ${typeof p}`);
-            });
-        }
-        return [new RegExp(DIGITS_PATTERN, flags)]
-    }
-
-    static #processStrings(strings, compiledPatterns, caseSensitive) {
-        const collectionMap = new Map();
-        const remainder = new Set();
-
-        for (const item of strings) {
-            let matched = false;
-
-            for (const pattern of compiledPatterns) {
-                pattern.lastIndex = 0;  // Reset regex state
-                const matches = item.matchAll(pattern);
-
-                for (const match of matches) {
-                    Collection.#processMatch(match, item, collectionMap, caseSensitive);
-                    matched = true;
-                }
-            }
-
-            if (!matched) {
-                remainder.add(item);
-            }
-        }
-
-        return { collectionMap, remainder };
-    }
-
-    static #processMatch(match, item, collectionMap, caseSensitive) {
-        const { index: matchIndex, groups } = match;
-        const { index, padding } = groups;
-
-        const fullMatch = match[0];
-        const numberStart = fullMatch.indexOf(index);
-
-        const head = item.slice(0, matchIndex + numberStart);
-        const tail = item.slice(matchIndex + numberStart + index.length);
-        const paddingLength = padding ? index.length : 0;
-
-        const normalizedHead = caseSensitive ? head : head.toLowerCase();
-        const normalizedTail = caseSensitive ? tail : tail.toLowerCase();
-
-        const key = `${normalizedHead}|${normalizedTail}|${paddingLength}`;
-
-        if (!collectionMap.has(key)) {
-            collectionMap.set(key, {
-                head,
-                tail,
-                padding: paddingLength,
-                indexes: new Set()
-            });
-        }
-
-        collectionMap.get(key).indexes.add(parseInt(index, 10));
-    }
-
-    static #createCollections(collectionMap) {
-        const collections = [];
-        const unpadded = [];
-
-        for (const { head, tail, padding, indexes } of collectionMap.values()) {
-            const collection = new Collection({
-                head: head,
-                tail: tail,
-                padding: padding,
-                indexes: indexes
-            });
-            collections.push(collection);
-            if (padding === 0) {
-                unpadded.push(collection);
-            }
-        }
-
-        return { collections, unpadded };
-    }
-
-    static #handlePaddingMerges({ collections, unpadded }) {
-        const fullyMerged = new Set();
-
-        for (const collection of collections) {
-            if (collection.padding === 0) continue;
-
-            for (const candidate of unpadded) {
-                if (candidate.head === collection.head &&
-                    candidate.tail === collection.tail) {
-
-                    const mergeResult = Collection.#attemptMerge(collection, candidate);
-                    if (mergeResult.complete) {
-                        fullyMerged.add(candidate);
-                    }
-                }
-            }
-        }
-
-        return collections.filter(c => !fullyMerged.has(c));
-    }
-
-    static #attemptMerge(target, source) {
-        let mergedCount = 0;
-
-        for (const index of source.indexes) {
-            if (String(Math.abs(index)).length === target.padding) {
-                target.add(index);
-                mergedCount++;
-            }
-        }
-
-        return { complete: mergedCount === source.indexes.length };
-    }
-
-    static #filterByMinItems(collections, minItems, remainder) {
-        return collections.filter(collection => {
-            if (collection._indexes.size >= minItems) {
-                return true;
-            }
-            collection.members.forEach(i => remainder.add(i));
-            return false;
-        });
-    }
-
-    static #handlePaddingAmbiguity(collections) {
-        for (const collection of collections) {
-            const indexes = collection.indexes;
-            if (!collection.padding && indexes.length > 0) {
-                const firstWidth = String(indexes[0]).length;
-                const lastWidth = String(indexes[indexes.length - 1]).length;
-                if (firstWidth === lastWidth) {
-                    collection.padding = firstWidth;
-                }
-            }
-        }
-    }
-
 }
 
 
-export { range, Collection, PATTERNS };
+export { range, Collection };
