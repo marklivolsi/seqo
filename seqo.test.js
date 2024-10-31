@@ -8,7 +8,7 @@
  */
 
 
-import { range, assemble, Collection, PATTERNS } from "./seqo.js";
+import { range, Collection, PATTERNS } from "./seqo.js";
 
 
 describe('range', () => {
@@ -1167,7 +1167,7 @@ describe('assemble', () => {
     // Basic functionality
     test('assembles basic sequence', () => {
         const items = ['File.0001.exr', 'File.0002.exr', 'other.exr'];
-        const [collections, remainder] = assemble(items);
+        const [collections, remainder] = Collection.assemble(items);
 
         expect(collections).toHaveLength(1);
         const collection = collections[0];
@@ -1183,7 +1183,7 @@ describe('assemble', () => {
             'File.0001.exr', 'File.0002.exr',
             'Other.0001.exr', 'Other.0002.exr'
         ];
-        const [collections, remainder] = assemble(items);
+        const [collections, remainder] = Collection.assemble(items);
 
         expect(collections).toHaveLength(2);
         expect(collections[0].head).toBe('File.');
@@ -1199,7 +1199,7 @@ describe('assemble', () => {
     // Pattern handling
     test('uses specific patterns when provided', () => {
         const items = ['shot_001_v002.ext', 'shot_001_v003.ext'];
-        const [collections, remainder] = assemble(items, { patterns: [PATTERNS.versions] });
+        const [collections, remainder] = Collection.assemble(items, { patterns: [PATTERNS.versions] });
 
         expect(collections).toHaveLength(1);
         expect(collections[0].head).toBe('shot_001_v');
@@ -1209,7 +1209,7 @@ describe('assemble', () => {
 
     test('handles empty patterns array', () => {
         const items = ['file.001.ext', 'file.002.ext'];
-        const [collections, remainder] = assemble(items, { patterns: [] });
+        const [collections, remainder] = Collection.assemble(items, { patterns: [] });
 
         expect(collections).toHaveLength(0);
         expect(remainder).toEqual(items);
@@ -1221,7 +1221,7 @@ describe('assemble', () => {
             'file.0001.exr', 'file.0002.exr',  // Valid collection
             'other.0001.exr'  // Single item
         ];
-        const [collections, remainder] = assemble(items, { minItems: 2 });
+        const [collections, remainder] = Collection.assemble(items, { minItems: 2 });
 
         expect(collections).toHaveLength(1);
         expect(collections[0].head).toBe('file.');
@@ -1233,7 +1233,7 @@ describe('assemble', () => {
             'file.0001.exr', 'file.0002.exr',
             'other.0001.exr', 'other.0002.exr'
         ];
-        const [collections, remainder] = assemble(items, { minItems: 3 });
+        const [collections, remainder] = Collection.assemble(items, { minItems: 3 });
 
         expect(collections).toHaveLength(0);
         expect(remainder).toEqual(items);
@@ -1242,7 +1242,7 @@ describe('assemble', () => {
     // Case sensitivity
     test('handles case-sensitive matching by default', () => {
         const items = ['File.001.exr', 'file.002.exr'];
-        const [collections, _] = assemble(items, { minItems: 1 });  // Override minItems
+        const [collections, _] = Collection.assemble(items, { minItems: 1 });  // Override minItems
 
         expect(collections).toHaveLength(2);
         expect(collections[0].members).toEqual(['File.001.exr']);
@@ -1251,7 +1251,7 @@ describe('assemble', () => {
 
     test('handles case-insensitive matching', () => {
         const items = ['File.001.exr', 'file.002.exr', 'FILE.003.exr'];
-        const [collections, _] = assemble(items, { caseSensitive: false });
+        const [collections, _] = Collection.assemble(items, { caseSensitive: false });
 
         expect(collections).toHaveLength(1);
         expect(collections[0].indexes).toEqual([1, 2, 3]);
@@ -1262,7 +1262,7 @@ describe('assemble', () => {
     // Padding behavior
     test('handles unpadded numbers', () => {
         const items = ['file.1.ext', 'file.2.ext', 'file.10.ext'];
-        const [collections, _] = assemble(items);
+        const [collections, _] = Collection.assemble(items);
 
         expect(collections).toHaveLength(1);
         expect(collections[0].padding).toBe(0);
@@ -1273,24 +1273,24 @@ describe('assemble', () => {
         const items = ['file.100.ext', 'file.101.ext', 'file.102.ext'];
 
         // Default behavior (not assuming padded)
-        const [collections1, _] = assemble(items);
+        const [collections1, _] = Collection.assemble(items);
         expect(collections1[0].padding).toBe(0);
 
         // With assumePaddedWhenAmbiguous
-        const [collections2, _2] = assemble(items, { assumePaddedWhenAmbiguous: true });
+        const [collections2, _2] = Collection.assemble(items, { assumePaddedWhenAmbiguous: true });
         expect(collections2[0].padding).toBe(3);
     });
 
     // Edge cases
     test('handles empty input', () => {
-        const [collections, remainder] = assemble([]);
+        const [collections, remainder] = Collection.assemble([]);
         expect(collections).toHaveLength(0);
         expect(remainder).toHaveLength(0);
     });
 
     test('handles non-sequential numbers', () => {
         const items = ['file.001.ext', 'file.003.ext', 'file.005.ext'];
-        const [collections, _] = assemble(items);
+        const [collections, _] = Collection.assemble(items);
 
         expect(collections).toHaveLength(1);
         expect(collections[0].indexes).toEqual([1, 3, 5]);
@@ -1298,7 +1298,7 @@ describe('assemble', () => {
 
     test('handles mixed formats', () => {
         const items = ['file.001.ext', 'file.02.ext', 'file.003.ext'];
-        const [collections, remainder] = assemble(items);
+        const [collections, remainder] = Collection.assemble(items);
 
         expect(collections[0].indexes).toEqual([1, 3]);
         expect(remainder).toContain('file.02.ext');
@@ -1306,7 +1306,7 @@ describe('assemble', () => {
 
     test('preserves exact head and tail with special characters', () => {
         const items = ['file-_@.001.ext!#', 'file-_@.002.ext!#'];
-        const [collections, _] = assemble(items);
+        const [collections, _] = Collection.assemble(items);
 
         expect(collections[0].head).toBe('file-_@.');
         expect(collections[0].tail).toBe('.ext!#');
@@ -1315,7 +1315,7 @@ describe('assemble', () => {
     // Multiple pattern matches
     test('handles multiple pattern matches correctly', () => {
         const items = ['shot_001_v002.ext', 'shot_001_v003.ext'];
-        const [collections, _] = assemble(items, {
+        const [collections, _] = Collection.assemble(items, {
             patterns: [PATTERNS.frames, PATTERNS.versions]
         });
 
@@ -1335,7 +1335,7 @@ describe('assemble', () => {
         console.log(items[items.length-1])
 
         const start = Date.now();
-        const [collections, _] = assemble(items);
+        const [collections, _] = Collection.assemble(items);
         const duration = Date.now() - start;
 
         console.log(collections[0].indexes[0], collections[0].indexes[collections[0].indexes.length - 1]);
