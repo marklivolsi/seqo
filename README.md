@@ -1,6 +1,6 @@
 # seqo
 
-A JavaScript port of the python library [clique](https://gitlab.com/4degrees/clique) for working with numeric sequences in filenames and text patterns. Useful for handling frame sequences, version numbers, and other numbered file patterns.
+A JavaScript port of the Python library [clique](https://gitlab.com/4degrees/clique) for working with numeric sequences in filenames and text patterns. Useful for handling frame sequences, version numbers, and other numbered file patterns.
 
 ## Features
 
@@ -19,10 +19,10 @@ npm install seqo
 ## Usage
 
 ### Basic Sequence Detection
-The `assemble` function accepts a list of strings and returns a tuple containing an array of collections and an array of unmatched items (remainder):
+The `Collection.assemble` static method accepts a list of strings and returns a tuple containing an array of collections and an array of unmatched items (remainder):
 
 ```javascript
-import { assemble } from 'seqo';
+import { Collection } from 'seqo';
 
 const files = [
     'shot_001.exr',
@@ -31,20 +31,21 @@ const files = [
     'other.txt'
 ];
 
-const [collections, remainder] = assemble(files);
-// collections[0].members => ['shot_001.exr', 'shot_002.exr', 'shot_003.exr']
-// remainder => ['other.txt']
+const [collections, remainder] = Collection.assemble(files);
+
+collections[0].members // ['shot_001.exr', 'shot_002.exr', 'shot_003.exr']
+remainder // ['other.txt']
 ```
 
 ### Creating Collections
-Collections can also be manually instantiated by providing an object containing the relevant properties:
+Collections can be manually instantiated by providing an object containing the `head` (prefix), `tail` (suffix), `padding`, and `indexes` properties:
 ```javascript
 import { Collection } from 'seqo';
 
 const collection = new Collection({
     head: 'frame_',    // prefix
     tail: '.exr',      // suffix
-    padding: 4,        // padding
+    padding: 4,        // leading-0 pad length
     indexes: [1, 2, 3] // indexes
 });
 
@@ -52,7 +53,7 @@ collection.members  // ['frame_0001.exr', 'frame_0002.exr', 'frame_0003.exr']
 ```
 
 ### Working with Ranges
-Seqo provides methods to analyze and manipulate discontinuous ranges:
+The `Collection` object provides methods to analyze and manipulate discontinuous ranges:
 
 ```javascript
 const collection = new Collection({
@@ -63,7 +64,7 @@ const collection = new Collection({
 // Check for gaps
 collection.isContiguous  // false
 
-// Get missing numbers
+// Get missing indexes
 collection.holes.indexes  // [3, 6]
 
 // Split into contiguous parts
@@ -73,7 +74,7 @@ const parts = collection.separate();
 // parts[2].indexes => [7]
 ```
 
-Seqo also provides a `range` utility function for generating integer ranges:
+Seqo also provides a `range` utility function for generating integer ranges, similar to Python's `range` function:
 ```javascript
 import { range } from 'seqo';
 
@@ -102,19 +103,19 @@ collection.members
 
 ### Pattern Parsing
 
-The `parseCollection` function creates `Collection` objects from formatted strings. It supports both default and custom patterns for parsing collection specifications.
+The `Collection.parse` static method creates `Collection` objects from formatted strings. It supports both default and custom patterns for parsing collection specifications.
 
 ```javascript
-import { parseCollection } from 'seqo';
+import { Collection } from 'seqo';
 
 // Using default pattern: '{head}{padding}{tail} [{ranges}]'
-const collection = parseCollection('frame_%04d.exr [1-5]');
+const collection = Collection.parse('frame_%04d.exr [1-5]');
 collection.members
 // ['frame_0001.exr', 'frame_0002.exr', 'frame_0003.exr', 'frame_0004.exr', 'frame_0005.exr']
 
 // Using custom pattern
 const customPattern = 'Sequence ({head}) padding:{padding} has frames {ranges}';
-const collection2 = parseCollection(
+const collection2 = Collection.parse(
     'Sequence (render_) padding:%03d has frames 1-3, 5-6',
     { pattern: customPattern }
 );
@@ -122,23 +123,23 @@ collection2.members
 // ['render_001', 'render_002', 'render_003', 'render_005', 'render_006']
 
 // Pattern with excluded ranges using holes
-const collection3 = parseCollection('shot_%03d.exr [1-10] [-4-6]');
+const collection3 = Collection.parse('shot_%03d.exr [1-10] [-4-6]');
 collection3.members
 // ['shot_001.exr', 'shot_002.exr', 'shot_003.exr', 
 //  'shot_007.exr', 'shot_008.exr', 'shot_009.exr', 'shot_010.exr']
 
 // Pattern supporting multiple range groups
-const collection4 = parseCollection('v%02d.ma [1-3, 7-8, 10]');
+const collection4 = Collection.parse('v%02d.ma [1-3, 7-8, 10]');
 collection4.members
 // ['v01.ma', 'v02.ma', 'v03.ma', 'v07.ma', 'v08.ma', 'v10.ma']
 ```
 
 Pattern placeholders:
-- `{head}`: The prefix before the padding pattern
+- `{head}`: The prefix before each index
 - `{padding}`: The padding pattern (e.g., %02d)
-- `{tail}`: The suffix after the padding pattern
-- `{range}`: The full index range from start-end
-- `{ranges}`: The index ranges to include
+- `{tail}`: The suffix after each index
+- `{range}`: The full index range from start-end (inclusive)
+- `{ranges}`: A comma-separated list of index ranges
 - `{holes}`: The index ranges to exclude (optional)
 
 Both ranges and holes support:
@@ -225,19 +226,19 @@ collection.format('{head} has {holes} missing')  // 'frame_ has 4, 8-9 missing'
 
 ## Built-in Patterns
 
-Seqo includes common sequence patterns:
+Seqo includes common sequence patterns through `Collection.patterns`:
 
 ```javascript
-import { PATTERNS } from 'seqo';
+import { Collection } from 'seqo';
 
 // Match frame numbers: ".001.", ".0001."
-PATTERNS.frames    // '\\.\\d+\\.'
+Collection.patterns.frames    // '\\.\\d+\\.'
 
 // Match version numbers: "v001", "v1"
-PATTERNS.versions  // 'v\\d+'
+Collection.patterns.versions  // 'v\\d+'
 
 // Generic digit sequence: "001", "1"
-PATTERNS.digits    // '\\d+'
+Collection.patterns.digits    // '\\d+'
 ```
 
 ## License
