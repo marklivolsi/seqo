@@ -1,6 +1,6 @@
 # seqo
 
-A JavaScript adaptation of the Python library [clique](https://gitlab.com/4degrees/clique) for working with numeric sequences in filenames and text patterns. Useful for handling frame sequences, version numbers, and other numbered file patterns.
+A JavaScript adaptation of the Python library [clique](https://gitlab.com/4degrees/clique) for parsing collections from common numerical components. Useful for handling frame sequences, version numbers, and other numbered file patterns.
 
 ## Features
 
