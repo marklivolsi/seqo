@@ -126,7 +126,10 @@ collection2.members
 // ['render_001', 'render_002', 'render_003', 'render_005', 'render_006']
 
 // Pattern with excluded ranges using holes
-const collection3 = Collection.parse('shot_%03d.exr [1-10] [-4-6]');
+const patternWithHoles = '{head}{padding}{tail} [{range}] [{holes}]'
+const collection3 = Collection.parse('shot_%03d.exr [1-10] [4-6]',
+    {pattern: patternWithHoles}
+);
 collection3.members
 // ['shot_001.exr', 'shot_002.exr', 'shot_003.exr', 
 //  'shot_007.exr', 'shot_008.exr', 'shot_009.exr', 'shot_010.exr']
@@ -205,6 +208,10 @@ const incompatibleCollection = new Collection({
     padding: 3,
     indexes: [1, 2]
 });
+
+// Check compatibility
+collection.isCompatible(incompatibleCollection);
+// false
 
 collection.add(incompatibleCollection);
 // Error: "[object Collection] is not compatible with this collection."
