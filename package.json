@@ -2,21 +2,32 @@
   "name": "seqo",
   "version": "1.0.0",
   "type": "module",
-  "description": "A Javascript adaptation of Python's Clique library, for parsing collections from common numerical components.",
+  "description": "A Javascript adaptation of Python's clique library, for parsing collections from common numerical components.",
   "main": "seqo.js",
   "types": "seqo.d.ts",
   "scripts": {
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "prepublishOnly": "npm test"
   },
   "files": [
     "seqo.js",
     "seqo.d.ts",
     "README.md"
   ],
-  "keywords": ["collection", "sequence"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/marklivolsi/seqo"
+  },
+  "homepage": "https://github.com/marklivolsi/seqo#readme",
+  "keywords": [
+    "collection", "sequence", "range", "vfx", "frame"
+  ],
   "author": "Mark Livolsi",
   "license": "Apache-2.0",
   "devDependencies": {
     "jest": "^29.7.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
   }
 }
