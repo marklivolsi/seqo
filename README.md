@@ -1,6 +1,6 @@
 # seqo
 
-[![Tests](https://github.com/marklivolsi/seqo/actions/workflows/test.yml/badge.svg)](https://github.com/marklivolsi/seqo/actions/workflows/test.yml)
+[![Tests](https://github.com/marklivolsi/seqo/workflows/Test/badge.svg)](https://github.com/marklivolsi/seqo/actions/workflows/test.yml)
 [![npm version](https://badge.fury.io/js/seqo.svg)](https://badge.fury.io/js/seqo)
 
 A JavaScript adaptation of the Python library [clique](https://gitlab.com/4degrees/clique) for parsing collections from common numerical components. Useful for handling frame sequences, version numbers, and other numbered file patterns.
