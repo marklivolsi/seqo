@@ -8,7 +8,7 @@
  */
 
 
-import { range, Collection } from "./seqo.js";
+import { range, Collection } from './seqo.js';
 
 
 describe('range', () => {
@@ -49,25 +49,25 @@ describe('range', () => {
 
     test('range is iterable', () => {
         let sum = 0;
-        for (let i of range(1, 5)) {
+        for (const i of range(1, 5)) {
             sum += i;
         }
         expect(sum).toBe(10);
     });
 
     test('range with non-integer arguments', () => {
-        expect(() => [...range(1.5)]).toThrow("range() arguments must be integers");
-        expect(() => [...range(0, 1.5)]).toThrow("range() arguments must be integers");
-        expect(() => [...range(0, 5, 1.5)]).toThrow("range() arguments must be integers");
+        expect(() => [...range(1.5)]).toThrow('range() arguments must be integers');
+        expect(() => [...range(0, 1.5)]).toThrow('range() arguments must be integers');
+        expect(() => [...range(0, 5, 1.5)]).toThrow('range() arguments must be integers');
     });
 
     test('range with zero step', () => {
-        expect(() => [...range(0, 1, 0)]).toThrow("range() step argument must not be zero");
+        expect(() => [...range(0, 1, 0)]).toThrow('range() step argument must not be zero');
     });
 
     test('range with incompatible step', () => {
-        expect(() => [...range(0, 5, -1)]).toThrow("range() step argument incompatible with start/stop");
-        expect(() => [...range(5, 0, 1)]).toThrow("range() step argument incompatible with start/stop");
+        expect(() => [...range(0, 5, -1)]).toThrow('range() step argument incompatible with start/stop');
+        expect(() => [...range(5, 0, 1)]).toThrow('range() step argument incompatible with start/stop');
     });
 
     test('range with edge cases', () => {
@@ -79,7 +79,7 @@ describe('range', () => {
 });
 
 
-describe("Collection", () => {
+describe('Collection', () => {
 
     test('constructor creates a Collection instance', () => {
         const collection = new Collection({
@@ -240,10 +240,10 @@ describe('Collection.add', () => {
 
     beforeEach(() => {
         collection = new Collection({
-           head: 'file_',
-           tail: '.txt',
-           padding: 2,
-           indexes: [1, 2, 3]
+            head: 'file_',
+            tail: '.txt',
+            padding: 2,
+            indexes: [1, 2, 3]
         });
     });
 
@@ -773,7 +773,7 @@ describe('Collection.isContiguous', () => {
             head: 'file_',
             tail: '.txt',
             padding: 4,
-            indexes: indexes
+            indexes
         });
         expect(collection.isContiguous).toBe(false);
     });
@@ -906,7 +906,7 @@ describe('Collection.separate', () => {
             head: 'file_',
             tail: '.txt',
             padding: 4,
-            indexes: indexes
+            indexes
         });
         const result = collection.separate();
 
@@ -1330,9 +1330,6 @@ describe('Collection.assemble', () => {
             { length: 1000 },
             (_, i) => `file.${String(i + 1).padStart(4, '0')}.ext`
         );
-
-        console.log(items[0])
-        console.log(items[items.length-1])
 
         const start = Date.now();
         const [collections, _] = Collection.assemble(items);

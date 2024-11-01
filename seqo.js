@@ -55,19 +55,19 @@ function range(start = 0, stop, step) {
 
     // Ensure all arguments are integers
     if (!Number.isInteger(start) || !Number.isInteger(stop) || !Number.isInteger(step)) {
-        throw new Error("range() arguments must be integers");
+        throw new Error('range() arguments must be integers');
     }
 
     if (step === 0) {
-        throw new Error("range() step argument must not be zero");
+        throw new Error('range() step argument must not be zero');
     }
 
     if ((start < stop && step < 0) || (start > stop && step > 0)) {
-        throw new Error("range() step argument incompatible with start/stop");
+        throw new Error('range() step argument incompatible with start/stop');
     }
 
     return {
-        [Symbol.iterator]: function* () {
+        *[Symbol.iterator] () {
             let i = start;
             while ((step > 0 && i < stop) || (step < 0 && i > stop)) {
                 yield i;
@@ -151,7 +151,7 @@ class Collection {
             range: '(?<range>\\d+-\\d+)?',
             ranges: '(?<ranges>[\\d ,\\-]+)?',
             holes: '(?<holes>[\\d ,\\-]+)'
-        }
+        };
 
         // Render pattern template with regex patterns
         let renderedPattern = Collection.#escapeRegExp(pattern);
@@ -172,9 +172,9 @@ class Collection {
         const padding = groups.padding ? parseInt(groups.padding, 10) : 0;
 
         const collection = new Collection({
-            head: head,
-            tail: tail,
-            padding: padding,
+            head,
+            tail,
+            padding,
             indexes: []
         });
 
@@ -303,7 +303,7 @@ class Collection {
                 throw new Error(`Invalid pattern type: ${typeof p}`);
             });
         }
-        return [new RegExp(Collection.#DIGITS_PATTERN, flags)]
+        return [new RegExp(Collection.#DIGITS_PATTERN, flags)];
     }
 
     static #processStrings(strings, compiledPatterns, caseSensitive) {
@@ -365,10 +365,10 @@ class Collection {
 
         for (const { head, tail, padding, indexes } of collectionMap.values()) {
             const collection = new Collection({
-                head: head,
-                tail: tail,
-                padding: padding,
-                indexes: indexes
+                head,
+                tail,
+                padding,
+                indexes
             });
             collections.push(collection);
             if (padding === 0) {
@@ -446,11 +446,11 @@ class Collection {
      * @param {number[]} [options.indexes=[]] - Array of non-negative integers representing the collection's indexes
      */
     constructor({
-                    head = "",
-                    tail = "",
-                    padding = 0,
-                    indexes = []
-                } = {}) {
+        head = '',
+        tail = '',
+        padding = 0,
+        indexes = []
+    } = {}) {
         this.head = head;
         this.tail = tail;
         this.padding = padding;
@@ -671,7 +671,7 @@ class Collection {
                         tail: this.tail,
                         padding: this.padding,
                         indexes: [...range(start, prev + 1)
-                    ]})
+                        ]})
                 );
                 start = current;
             }
@@ -681,11 +681,11 @@ class Collection {
         // Add the final collection
         collections.push(
             new Collection({
-                    head: this.head,
-                    tail: this.tail,
-                    padding: this.padding,
-                    indexes: [...range(start, prev + 1)
-            ]})
+                head: this.head,
+                tail: this.tail,
+                padding: this.padding,
+                indexes: [...range(start, prev + 1)
+                ]})
         );
 
         return collections;
@@ -796,16 +796,16 @@ class Collection {
      */
     #validate() {
         if (!Number.isInteger(this.padding) || this.padding < 0) {
-            throw new Error("Padding must be a non-negative integer");
+            throw new Error('Padding must be a non-negative integer');
         }
 
         if (!(this._indexes instanceof Set)) {
-            throw new Error("Indexes must be a Set");
+            throw new Error('Indexes must be a Set');
         }
 
         for (const index of this._indexes) {
             if (!Number.isInteger(index) || index < 0) {
-                throw new Error("All indexes must be non-negative integers");
+                throw new Error('All indexes must be non-negative integers');
             }
         }
     }
